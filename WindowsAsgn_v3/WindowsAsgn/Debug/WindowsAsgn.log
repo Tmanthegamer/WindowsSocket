@@ -1,0 +1,18 @@
+﻿Build started 2/7/2016 12:19:28 AM.
+     1>Project "C:\Users\Tyler\Google Drive\Notes\COMP 4985 - Windows\Assignments\Assignment1\WindowsAsgn_v3\WindowsAsgn\WindowsAsgn.vcxproj" on node 2 (Build target(s)).
+     1>ClCompile:
+         C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\CL.exe /c /Icomctl32.lib /ZI /nologo /W3 /WX- /sdl /Od /Oy- /D _MBCS /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"Debug\\" /Fd"Debug\vc140.pdb" /Gd /TP /analyze- /errorReport:prompt Async.cpp
+         Async.cpp
+     1>c:\users\tyler\google drive\notes\comp 4985 - windows\assignments\assignment1\windowsasgn_v3\windowsasgn\async.cpp(48): warning C4101: 'RecvBytes': unreferenced local variable
+     1>c:\users\tyler\google drive\notes\comp 4985 - windows\assignments\assignment1\windowsasgn_v3\windowsasgn\async.cpp(287): warning C4018: '<': signed/unsigned mismatch
+       Link:
+         C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\Tyler\Google Drive\Notes\COMP 4985 - Windows\Assignments\Assignment1\WindowsAsgn_v3\Debug\WindowsAsgn.exe" /INCREMENTAL /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /Debug /PDB:"C:\Users\Tyler\Google Drive\Notes\COMP 4985 - Windows\Assignments\Assignment1\WindowsAsgn_v3\Debug\WindowsAsgn.pdb" /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\Tyler\Google Drive\Notes\COMP 4985 - Windows\Assignments\Assignment1\WindowsAsgn_v3\Debug\WindowsAsgn.lib" /MACHINE:X86 Debug\Resource.res
+         Debug\Async.obj
+         Debug\InternetUtilities.obj
+         Debug\Source.obj
+         WindowsAsgn.vcxproj -> C:\Users\Tyler\Google Drive\Notes\COMP 4985 - Windows\Assignments\Assignment1\WindowsAsgn_v3\Debug\WindowsAsgn.exe
+     1>Done Building Project "C:\Users\Tyler\Google Drive\Notes\COMP 4985 - Windows\Assignments\Assignment1\WindowsAsgn_v3\WindowsAsgn\WindowsAsgn.vcxproj" (Build target(s)).
+
+Build succeeded.
+
+Time Elapsed 00:00:01.48

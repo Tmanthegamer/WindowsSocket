@@ -1,0 +1,133 @@
+﻿Build started 2016-02-05 4:25:57 PM.
+     1>Project "C:\Users\Tyler\Google Drive\Notes\COMP 4985 - Windows\Assignments\Assignment1\WindowsAsgn_v3\WindowsAsgn\WindowsAsgn.vcxproj" on node 2 (Build target(s)).
+     1>ClCompile:
+         C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\x86_amd64\CL.exe /c /ZI /nologo /W3 /WX- /sdl /Od /D _MBCS /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"x64\Debug\\" /Fd"x64\Debug\vc140.pdb" /Gd /TP /errorReport:prompt Source.cpp
+         Source.cpp
+     1>c:\program files (x86)\windows kits\8.1\include\um\commctrl.h(31): error C2059: syntax error: 'return'
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(102): error C2065: 'CALLBACK': undeclared identifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(102): error C2065: 'LPFNPSPCALLBACKA': undeclared identifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(102): error C4430: missing type specifier - int assumed. Note: C++ does not support default-int
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(102): error C2513: 'int': no variable declared before '='
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(102): error C2143: syntax error: missing ';' before '('
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(102): error C2146: syntax error: missing ')' before identifier 'hwnd'
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(102): error C2146: syntax error: missing ';' before identifier 'hwnd'
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(102): error C2059: syntax error: ')'
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(103): error C2143: syntax error: missing ')' before '*'
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(103): error C2143: syntax error: missing ';' before '*'
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(103): error C2059: syntax error: ')'
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(103): error C2146: syntax error: missing ')' before identifier 'hwnd'
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(138): error C4430: missing type specifier - int assumed. Note: C++ does not support default-int
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(138): error C2146: syntax error: missing ';' before identifier 'PROPSHEETPAGE_RESOURCE'
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(196): error C3646: 'dwSize': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(196): error C4430: missing type specifier - int assumed. Note: C++ does not support default-int
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(196): error C3646: 'dwFlags': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(196): error C3646: 'hInstance': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(196): error C3646: 'pszTemplate': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(196): error C3646: 'pResource': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(196): error C3646: 'hIcon': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(196): error C3646: 'pszIcon': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(196): error C3646: 'pszTitle': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(196): error C3646: 'pfnDlgProc': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(196): error C3646: 'lParam': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(196): error C3646: 'pfnCallback': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(202): error C3646: 'dwSize': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(202): error C4430: missing type specifier - int assumed. Note: C++ does not support default-int
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(202): error C3646: 'dwFlags': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(202): error C3646: 'hInstance': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(202): error C3646: 'pszTemplate': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(202): error C3646: 'pResource': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(202): error C3646: 'hIcon': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(202): error C3646: 'pszIcon': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(202): error C3646: 'pszTitle': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(202): error C3646: 'pfnDlgProc': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(202): error C3646: 'lParam': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(202): error C3646: 'pfnCallback': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(204): error C3646: 'pszHeaderTitle': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(204): error C4430: missing type specifier - int assumed. Note: C++ does not support default-int
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(205): error C3646: 'pszHeaderSubTitle': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(205): error C4430: missing type specifier - int assumed. Note: C++ does not support default-int
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(211): error C3646: 'dwSize': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(211): error C4430: missing type specifier - int assumed. Note: C++ does not support default-int
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(211): error C3646: 'dwFlags': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(211): error C3646: 'hInstance': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(211): error C3646: 'pszTemplate': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(211): error C3646: 'pResource': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(211): error C3646: 'hIcon': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(211): error C3646: 'pszIcon': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(211): error C3646: 'pszTitle': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(211): error C3646: 'pfnDlgProc': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(211): error C3646: 'lParam': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(211): error C3646: 'pfnCallback': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(213): error C3646: 'pszHeaderTitle': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(213): error C4430: missing type specifier - int assumed. Note: C++ does not support default-int
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(214): error C3646: 'pszHeaderSubTitle': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(214): error C4430: missing type specifier - int assumed. Note: C++ does not support default-int
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(216): error C3646: 'hActCtx': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(216): error C4430: missing type specifier - int assumed. Note: C++ does not support default-int
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(223): error C3646: 'dwSize': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(223): error C4430: missing type specifier - int assumed. Note: C++ does not support default-int
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(223): error C3646: 'dwFlags': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(223): error C3646: 'hInstance': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(223): error C3646: 'pszTemplate': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(223): error C3646: 'pResource': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(223): error C3646: 'hIcon': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(223): error C3646: 'pszIcon': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(223): error C3646: 'pszTitle': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(223): error C3646: 'pfnDlgProc': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(223): error C3646: 'lParam': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(223): error C3646: 'pfnCallback': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(225): error C3646: 'pszHeaderTitle': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(225): error C4430: missing type specifier - int assumed. Note: C++ does not support default-int
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(226): error C3646: 'pszHeaderSubTitle': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(226): error C4430: missing type specifier - int assumed. Note: C++ does not support default-int
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(228): error C3646: 'hActCtx': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(228): error C4430: missing type specifier - int assumed. Note: C++ does not support default-int
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(232): error C3646: 'hbmHeader': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(232): error C4430: missing type specifier - int assumed. Note: C++ does not support default-int
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(233): error C3646: 'pszbmHeader': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(233): error C4430: missing type specifier - int assumed. Note: C++ does not support default-int
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(242): error C3646: 'dwSize': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(242): error C4430: missing type specifier - int assumed. Note: C++ does not support default-int
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(242): error C3646: 'dwFlags': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(242): error C3646: 'hInstance': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(242): error C3646: 'pszTemplate': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(242): error C3646: 'pResource': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(242): error C3646: 'hIcon': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(242): error C3646: 'pszIcon': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(242): error C3646: 'pszTitle': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(242): error C3646: 'pfnDlgProc': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(242): error C3646: 'lParam': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(242): error C3646: 'pfnCallback': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(248): error C3646: 'dwSize': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(248): error C4430: missing type specifier - int assumed. Note: C++ does not support default-int
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(248): error C3646: 'dwFlags': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(248): error C3646: 'hInstance': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(248): error C3646: 'pszTemplate': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(248): error C3646: 'pResource': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(248): error C3646: 'hIcon': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(248): error C3646: 'pszIcon': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(248): error C3646: 'pszTitle': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(248): error C3646: 'pfnDlgProc': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(248): error C3646: 'lParam': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(248): error C3646: 'pfnCallback': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(250): error C3646: 'pszHeaderTitle': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(250): error C4430: missing type specifier - int assumed. Note: C++ does not support default-int
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(251): error C3646: 'pszHeaderSubTitle': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(251): error C4430: missing type specifier - int assumed. Note: C++ does not support default-int
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(257): error C3646: 'dwSize': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(257): error C4430: missing type specifier - int assumed. Note: C++ does not support default-int
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(257): error C3646: 'dwFlags': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(257): error C3646: 'hInstance': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(257): error C3646: 'pszTemplate': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(257): error C3646: 'pResource': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(257): error C3646: 'hIcon': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(257): error C3646: 'pszIcon': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(257): error C3646: 'pszTitle': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(257): error C3646: 'pfnDlgProc': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(257): error C3646: 'lParam': unknown override specifier
+     1>c:\program files (x86)\windows kits\8.1\include\um\prsht.h(257): fatal error C1003: error count exceeds 100; stopping compilation
+     1>Done Building Project "C:\Users\Tyler\Google Drive\Notes\COMP 4985 - Windows\Assignments\Assignment1\WindowsAsgn_v3\WindowsAsgn\WindowsAsgn.vcxproj" (Build target(s)) -- FAILED.
+
+Build FAILED.
+
+Time Elapsed 00:00:00.36
