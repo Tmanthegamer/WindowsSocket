@@ -18,3 +18,7 @@ typedef struct _SOCKET_INFORMATION {
 } SOCKET_INFORMATION, *LPSOCKET_INFORMATION;
 
 DWORD WINAPI ProcessIO(LPVOID lpParameter);
+
+BOOL OpenPortForSending(HANDLE file, int packet_size, int frequency, char* protocol);
+
+BOOL IncomingConnections(SOCKET ListenSocket);

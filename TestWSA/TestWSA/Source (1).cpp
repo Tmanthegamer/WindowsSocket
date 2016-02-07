@@ -31,7 +31,7 @@
 #define DATA_BUFSIZE 8192
 
 typedef struct _SOCKET_INFORMATION {
-	CHAR Buffer[11];
+	CHAR Buffer[DATA_BUFSIZE];
 	WSABUF DataBuf;
 	SOCKET Socket;
 	WSAOVERLAPPED Overlapped;
@@ -191,7 +191,9 @@ DWORD WINAPI ProcessIO(LPVOID lpParameter)
 	DWORD i;
 	DWORD RecvBytes, SendBytes;
 
-	char message[31] = "012345678901234567890123456789";
+	char message[31] = "abcdefghijklmnopqrstuvwxyz1234";
+	int hits = 0;
+	int sent = 0;
 
 	// Process asynchronous WSASend, WSARecv requests.
 
@@ -221,7 +223,7 @@ DWORD WINAPI ProcessIO(LPVOID lpParameter)
 			FALSE, &Flags) == FALSE || BytesTransferred == 0)
 		{
 			printf("Closing socket %d\n", SI->Socket);
-
+			hits = 0;
 			if (closesocket(SI->Socket) == SOCKET_ERROR)
 			{
 				printf("closesocket() failed with error %d\n", WSAGetLastError());
@@ -273,9 +275,20 @@ DWORD WINAPI ProcessIO(LPVOID lpParameter)
 
 			ZeroMemory(&(SI->Overlapped), sizeof(WSAOVERLAPPED));
 			SI->Overlapped.hEvent = EventArray[Index - WSA_WAIT_EVENT_0];
+			
+			for (int j = 0; j < 10; j++)
+			{
+				if (message[(hits * 10) + j] != '\0')
+				{
+					SI->DataBuf.buf[j] = message[(hits * 10) + j];
+				}
+				else {
+					SI->DataBuf.buf[j] == '\0';
+				}
 
-			SI->DataBuf.buf = SI->Buffer + SI->BytesSEND;
-			SI->DataBuf.len = SI->BytesRECV - SI->BytesSEND;
+			}
+			SI->DataBuf.len = strlen(SI->DataBuf.buf);
+			SI->DataBuf.len == 0 ? SI->DataBuf.len = 1 : SI->DataBuf.len;
 			
 			if (WSASend(SI->Socket, &(SI->DataBuf), 1, &SendBytes, 0,
 				&(SI->Overlapped), NULL) == SOCKET_ERROR)
@@ -285,6 +298,9 @@ DWORD WINAPI ProcessIO(LPVOID lpParameter)
 					printf("WSASend() failed with error %d\n", WSAGetLastError());
 					return 0;
 				}
+			}
+			else {
+				hits++;
 			}
 		}
 		else
