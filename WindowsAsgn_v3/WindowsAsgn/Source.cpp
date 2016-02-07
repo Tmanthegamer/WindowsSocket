@@ -67,6 +67,14 @@ int frequency = 1;
 
 TCHAR Name[] = TEXT("The Amazing Convert-o-matic");
 
+LPSOCKET_INFORMATION SocketInfoList;
+
+#define WM_SOCKET (WM_USER + 1)
+
+void CreateSocketInformation(SOCKET s);
+LPSOCKET_INFORMATION GetSocketInformation(SOCKET s);
+void FreeSocketInformation(SOCKET s);
+
 BOOL CALLBACK AboutDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 {
 	switch (Message)
@@ -169,6 +177,10 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hprevInstance,
 {
 	MSG Msg;
 	WNDCLASSEX Wcl;
+	DWORD Ret;
+	SOCKET Listen;
+	SOCKADDR_IN InternetAddr;
+	WSADATA wsaData;
 
 	Wcl.cbSize = sizeof(WNDCLASSEX);
 	Wcl.style = CS_HREDRAW | CS_VREDRAW;
@@ -202,6 +214,37 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hprevInstance,
 						NULL);
 	ShowWindow(hwnd, nCmdShow);
 	UpdateWindow(hwnd);
+
+	// Prepare echo server
+	if ((Ret = WSAStartup(0x0202, &wsaData)) != 0)
+	{
+		printf("WSAStartup failed with error %d\n", Ret);
+		return -1;
+	}
+
+	if ((Listen = socket(PF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET)
+	{
+		printf("socket() failed with error %d\n", WSAGetLastError());
+		return -1;
+	}
+
+	WSAAsyncSelect(Listen, hwnd, WM_SOCKET, FD_ACCEPT | FD_CLOSE);
+
+	InternetAddr.sin_family = AF_INET;
+	InternetAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+	InternetAddr.sin_port = htons(PORT);
+
+	if (bind(Listen, (PSOCKADDR)&InternetAddr, sizeof(InternetAddr)) == SOCKET_ERROR)
+	{
+		printf("bind() failed with error %d\n", WSAGetLastError());
+		return -1;
+	}
+
+	if (listen(Listen, 5))
+	{
+		printf("listen() failed with error %d\n", WSAGetLastError());
+		return -1;
+	}
 
 	while (GetMessage(&Msg, NULL, 0, 0))
 	{
@@ -286,11 +329,90 @@ HANDLE selectFile() {
 	return NULL;
 }
 
+HMENU CreateMenuOptions(void)
+{
+	
+	HMENU hMenu = CreateMenu();
+
+	HMENU hSubMenu = CreatePopupMenu();
+	AppendMenu(hSubMenu, MF_STRING, ID_FILE_CONNECT, "&Connect");
+	AppendMenu(hSubMenu, MF_STRING, ID_FILE_SELECT, "&Select");
+	AppendMenu(hSubMenu, MF_STRING, ID_FILE_SAVE, "&Save");
+	AppendMenu(hSubMenu, MF_STRING, ID_FILE_EXIT, "&Exit");
+	AppendMenu(hMenu, MF_STRING | MF_POPUP, (UINT)hSubMenu, "&File");
+
+	hSubMenu = CreatePopupMenu();
+	AppendMenu(hSubMenu, MF_STRING, ID_PROTOCOL_TCP, "&TCP");
+	AppendMenu(hSubMenu, MF_STRING, ID_PROTOCOL_UDP, "&UDP");
+	AppendMenu(hMenu, MF_STRING | MF_POPUP, (UINT)hSubMenu, "&Protocol");
+
+	hSubMenu = CreatePopupMenu();
+	AppendMenu(hSubMenu, MF_STRING, ID_PACKETSIZE_1, "&1kB");
+	AppendMenu(hSubMenu, MF_STRING, ID_PACKETSIZE_4, "&4kB");
+	AppendMenu(hSubMenu, MF_STRING, ID_PACKETSIZE_20, "&20kB");
+	AppendMenu(hSubMenu, MF_STRING, ID_PACKETSIZE_60, "&60kB");
+	AppendMenu(hSubMenu, MF_STRING, ID_PACKETSIZE_CUSTOM, "&Custom");
+	AppendMenu(hMenu, MF_STRING | MF_POPUP, (UINT)hSubMenu, "&Packet Size");
+
+	hSubMenu = CreatePopupMenu();
+	AppendMenu(hSubMenu, MF_STRING, ID_FREQUENCY_1, "&1 time");
+	AppendMenu(hSubMenu, MF_STRING, ID_FREQUENCY_10, "&10 times");
+	AppendMenu(hSubMenu, MF_STRING, ID_FREQUENCY_50, "&50 times");
+	AppendMenu(hSubMenu, MF_STRING, ID_FREQUENCY_100, "&100 times");
+	AppendMenu(hSubMenu, MF_STRING, ID_FREQUENCY_200, "&200 times");
+	AppendMenu(hMenu, MF_STRING | MF_POPUP, (UINT)hSubMenu, "&Freqency");
+
+	return hMenu;
+}
+
+void CreateInputText(HWND hwnd)
+{
+	/* Container for the ComboBox drop down list. */
+	listGroupBox = CreateWindow(TEXT("BUTTON"), TEXT("Enter Port Number"),
+		WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
+		295, 10, 260, 50,
+		hwnd,
+		(HMENU)-1,
+		hInst,
+		NULL);
+
+	/* Input Text field. */
+	inputHost = CreateWindow(TEXT("EDIT"), TEXT(""),
+		WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL,
+		10, 30, 250, 20,
+		hwnd,
+		(HMENU)IDD_EDIT_TEXT,
+		hInst,
+		NULL);
+
+	/* Input Text field. */
+	inputPort = CreateWindow(TEXT("EDIT"), TEXT(""),
+		WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL,
+		300, 30, 250, 20,
+		hwnd,
+		(HMENU)IDD_EDIT_TEXT,
+		hInst,
+		NULL);
+
+	inputGroupBox = CreateWindow(TEXT("BUTTON"), TEXT("Enter IP Address"),
+		WS_CHILD | WS_VISIBLE | BS_GROUPBOX | WS_EX_TRANSPARENT,
+		5, 10, 260, 50,
+		hwnd,
+		(HMENU)-1,
+		hInst,
+		NULL);
+
+}
+
 LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 	WPARAM wParam, LPARAM lParam)
 {
 	HDC hdc;
-	HMENU hMenu, hSubMenu;
+	HMENU hMenu = 0, hSubMenu;
+	SOCKET Accept;
+	LPSOCKET_INFORMATION SocketInfo;
+	DWORD RecvBytes, SendBytes;
+	DWORD Flags;
 	TCHAR* textInput;
 	DWORD haha = 1000;
 	DWORD read = 0;
@@ -299,79 +421,140 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 	switch (Message)
 	{
 	case WM_CREATE:
-		hMenu = CreateMenu();
-
-		hSubMenu = CreatePopupMenu();
-		AppendMenu(hSubMenu, MF_STRING, ID_FILE_CONNECT, "&Connect");
-		AppendMenu(hSubMenu, MF_STRING, ID_FILE_SELECT, "&Select");
-		AppendMenu(hSubMenu, MF_STRING, ID_FILE_SAVE, "&Save");
-		AppendMenu(hSubMenu, MF_STRING, ID_FILE_EXIT, "&Exit");
-		AppendMenu(hMenu, MF_STRING | MF_POPUP, (UINT)hSubMenu, "&File");
-
-		hSubMenu = CreatePopupMenu();
-		AppendMenu(hSubMenu, MF_STRING, ID_PROTOCOL_TCP, "&TCP");
-		AppendMenu(hSubMenu, MF_STRING, ID_PROTOCOL_UDP, "&UDP");
-		AppendMenu(hMenu, MF_STRING | MF_POPUP, (UINT)hSubMenu, "&Protocol");
-
-		hSubMenu = CreatePopupMenu();
-		AppendMenu(hSubMenu, MF_STRING, ID_PACKETSIZE_1, "&1kB");
-		AppendMenu(hSubMenu, MF_STRING, ID_PACKETSIZE_4, "&4kB");
-		AppendMenu(hSubMenu, MF_STRING, ID_PACKETSIZE_20, "&20kB");
-		AppendMenu(hSubMenu, MF_STRING, ID_PACKETSIZE_60, "&60kB");
-		AppendMenu(hSubMenu, MF_STRING, ID_PACKETSIZE_CUSTOM, "&Custom");
-		AppendMenu(hMenu, MF_STRING | MF_POPUP, (UINT)hSubMenu, "&Packet Size");
-
-		hSubMenu = CreatePopupMenu();
-		AppendMenu(hSubMenu, MF_STRING, ID_FREQUENCY_1, "&1 time");
-		AppendMenu(hSubMenu, MF_STRING, ID_FREQUENCY_10, "&10 times");
-		AppendMenu(hSubMenu, MF_STRING, ID_FREQUENCY_50, "&50 times");
-		AppendMenu(hSubMenu, MF_STRING, ID_FREQUENCY_100, "&100 times");
-		AppendMenu(hSubMenu, MF_STRING, ID_FREQUENCY_200, "&200 times");
-		AppendMenu(hMenu, MF_STRING | MF_POPUP, (UINT)hSubMenu, "&Freqency");
-
+		hMenu = CreateMenuOptions();
 		listview = CreateListView(hwnd);
+		CreateInputText(hwnd);
 
 		updateStatistic(listview, 1, 2, 3, 4, 5);
 
 		SetMenu(hwnd, hMenu);
 
-		/* Container for the ComboBox drop down list. */
-		listGroupBox = CreateWindow(TEXT("BUTTON"), TEXT("Enter Port Number"),
-			WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
-			295, 10, 260, 50,
-			hwnd,
-			(HMENU)-1,
-			hInst,
-			NULL);
-
-		/* Input Text field. */
-		inputHost = CreateWindow(TEXT("EDIT"), TEXT(""),
-			WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL,
-			10, 30, 250, 20,
-			hwnd,
-			(HMENU)IDD_EDIT_TEXT,
-			hInst,
-			NULL);
-
-		/* Input Text field. */
-		inputPort = CreateWindow(TEXT("EDIT"), TEXT(""),
-			WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL,
-			300, 30, 250, 20,
-			hwnd,
-			(HMENU)IDD_EDIT_TEXT,
-			hInst,
-			NULL);
-
-		inputGroupBox = CreateWindow(TEXT("BUTTON"), TEXT("Enter IP Address"),
-			WS_CHILD | WS_VISIBLE | BS_GROUPBOX | WS_EX_TRANSPARENT,
-			5, 10, 260, 50,
-			hwnd,
-			(HMENU)-1,
-			hInst,
-			NULL);
+		
 
 		break;
+	case WM_SOCKET:
+		if (WSAGETSELECTERROR(lParam))
+		{
+			printf("Socket failed with error %d\n", WSAGETSELECTERROR(lParam));
+			FreeSocketInformation(wParam);
+		}
+		else
+		{
+			switch (WSAGETSELECTEVENT(lParam))
+			{
+			case FD_ACCEPT:
+				char pants[100];
+				if ((Accept = accept(wParam, NULL, NULL)) == INVALID_SOCKET)
+				{
+					char pants[100];
+					sprintf_s(pants, "%d", WSAGetLastError());
+					OutputDebugString("accept() failed with error");
+					OutputDebugString(pants);
+					OutputDebugString("\n");
+					break;
+				}
 
+				// Create a socket information structure to associate with the
+				// socket for processing I/O.
+
+				CreateSocketInformation(Accept);
+
+				sprintf_s(pants, "%d", Accept);
+				OutputDebugString("Socket number ");
+				OutputDebugString(pants);
+				OutputDebugString(" connected.\n");
+
+				WSAAsyncSelect(Accept, hwnd, WM_SOCKET, FD_READ | FD_WRITE | FD_CLOSE);
+
+				break;
+
+			case FD_READ:
+
+				SocketInfo = GetSocketInformation(wParam);
+
+				// Read data only if the receive buffer is empty.
+
+				if (SocketInfo->BytesRECV != 0)
+				{
+					SocketInfo->RecvPosted = TRUE;
+					return 0;
+				}
+				else
+				{
+					SocketInfo->DataBuf.buf = SocketInfo->Buffer;
+					SocketInfo->DataBuf.len = DATA_BUFSIZE;
+
+					Flags = 0;
+					if (WSARecv(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &RecvBytes,
+						&Flags, NULL, NULL) == SOCKET_ERROR)
+					{
+						if (WSAGetLastError() != WSAEWOULDBLOCK)
+						{
+							printf("WSARecv() failed with error %d\n", WSAGetLastError());
+							FreeSocketInformation(wParam);
+							return 0;
+						}
+					}
+					else // No error so update the byte count
+					{
+						SocketInfo->BytesRECV = RecvBytes;
+					}
+				}
+
+				// DO NOT BREAK HERE SINCE WE GOT A SUCCESSFUL RECV. Go ahead
+				// and begin writing data to the client.
+
+			case FD_WRITE:
+
+				SocketInfo = GetSocketInformation(wParam);
+
+				if (SocketInfo->BytesRECV > SocketInfo->BytesSEND)
+				{
+					SocketInfo->DataBuf.buf = SocketInfo->Buffer + SocketInfo->BytesSEND;
+					SocketInfo->DataBuf.len = SocketInfo->BytesRECV - SocketInfo->BytesSEND;
+
+					if (WSASend(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &SendBytes, 0,
+						NULL, NULL) == SOCKET_ERROR)
+					{
+						if (WSAGetLastError() != WSAEWOULDBLOCK)
+						{
+							printf("WSASend() failed with error %d\n", WSAGetLastError());
+							FreeSocketInformation(wParam);
+							return 0;
+						}
+					}
+					else // No error so update the byte count
+					{
+						SocketInfo->BytesSEND += SendBytes;
+					}
+				}
+
+				if (SocketInfo->BytesSEND == SocketInfo->BytesRECV)
+				{
+					SocketInfo->BytesSEND = 0;
+					SocketInfo->BytesRECV = 0;
+
+					// If a RECV occurred during our SENDs then we need to post an FD_READ
+					// notification on the socket.
+
+					if (SocketInfo->RecvPosted == TRUE)
+					{
+						SocketInfo->RecvPosted = FALSE;
+						PostMessage(hwnd, WM_SOCKET, wParam, FD_READ);
+					}
+				}
+
+				break;
+
+			case FD_CLOSE:
+
+				printf("Closing socket %d\n", wParam);
+				FreeSocketInformation(wParam);
+
+				break;
+			}
+		}
+		break;
 	case WM_COMMAND:
 		switch (LOWORD(wParam))
 		{
@@ -412,6 +595,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			frequency = 200;
 			break;
 		case ID_FILE_CONNECT:
+			//OpenPortForSending(fileRead, packet_size, frequency, protocol);
 			break;
 		case ID_FILE_SELECT:
 			fileRead = selectFile();
@@ -433,12 +617,18 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 	return 0;
 }
 
-TCHAR* GetTextFromInput() {
-	//int len = SendMessage(input, WM_GETTEXTLENGTH, 0, 0);
-	//TCHAR* buffer = new char[len+1];
-	//SendMessage(input, WM_GETTEXT, (WPARAM)len+1, (LPARAM)buffer);
-	//return buffer;
-	return "hello";
+TCHAR* GetTextFromHost() {
+	int len = SendMessage(inputHost, WM_GETTEXTLENGTH, 0, 0);
+	TCHAR* buffer = new char[len+1];
+	SendMessage(inputHost, WM_GETTEXT, (WPARAM)len+1, (LPARAM)buffer);
+	return buffer;
+}
+
+TCHAR* GetTextFromPort() {
+	int len = SendMessage(inputPort, WM_GETTEXTLENGTH, 0, 0);
+	TCHAR* buffer = new char[len + 1];
+	SendMessage(inputPort, WM_GETTEXT, (WPARAM)len + 1, (LPARAM)buffer);
+	return buffer;
 }
 
 void SetOutputText(TCHAR* text, int len) {
@@ -469,4 +659,66 @@ void updateStatistic(HWND hList, int avg, int sent, int lost, int data, int time
 	ListView_SetItemText(hList, 1, 2, l);
 	ListView_SetItemText(hList, 1, 3, d);
 	ListView_SetItemText(hList, 1, 4, t);
+}
+
+void CreateSocketInformation(SOCKET s)
+{
+	LPSOCKET_INFORMATION SI;
+
+	if ((SI = (LPSOCKET_INFORMATION)GlobalAlloc(GPTR,
+		sizeof(SOCKET_INFORMATION))) == NULL)
+	{
+		printf("GlobalAlloc() failed with error %d\n", GetLastError());
+		return;
+	}
+
+	// Prepare SocketInfo structure for use.
+
+	SI->Socket = s;
+	SI->RecvPosted = FALSE;
+	SI->BytesSEND = 0;
+	SI->BytesRECV = 0;
+
+	SI->Next = SocketInfoList;
+
+	SocketInfoList = SI;
+}
+
+LPSOCKET_INFORMATION GetSocketInformation(SOCKET s)
+{
+	SOCKET_INFORMATION *SI = SocketInfoList;
+
+	while (SI)
+	{
+		if (SI->Socket == s)
+			return SI;
+
+		SI = SI->Next;
+	}
+
+	return NULL;
+}
+
+void FreeSocketInformation(SOCKET s)
+{
+	SOCKET_INFORMATION *SI = SocketInfoList;
+	SOCKET_INFORMATION *PrevSI = NULL;
+
+	while (SI)
+	{
+		if (SI->Socket == s)
+		{
+			if (PrevSI)
+				PrevSI->Next = SI->Next;
+			else
+				SocketInfoList = SI->Next;
+
+			closesocket(SI->Socket);
+			GlobalFree(SI);
+			return;
+		}
+
+		PrevSI = SI;
+		SI = SI->Next;
+	}
 }

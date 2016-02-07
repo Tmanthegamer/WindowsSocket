@@ -21,18 +21,7 @@
 //
 //    Note: There are no command line options for this sample.
 #include "Async.h"
-#define PORT 5150
-#define DATA_BUFSIZE 8192
-
-typedef struct _SOCKET_INFORMATION {
-	CHAR Buffer[DATA_BUFSIZE];
-	WSABUF DataBuf;
-	SOCKET Socket;
-	WSAOVERLAPPED Overlapped;
-	DWORD BytesSEND;
-	DWORD BytesRECV;
-} SOCKET_INFORMATION, *LPSOCKET_INFORMATION;
-
+/*
 DWORD WINAPI ProcessIO(LPVOID lpParameter);
 
 DWORD EventTotal = 0;
@@ -40,15 +29,32 @@ WSAEVENT EventArray[WSA_MAXIMUM_WAIT_EVENTS];
 LPSOCKET_INFORMATION SocketArray[WSA_MAXIMUM_WAIT_EVENTS];
 CRITICAL_SECTION CriticalSection;
 
-void main(void)
+char* sbuf;
+int length;
+
+BOOL fin = FALSE;
+
+typedef struct {
+	int packet_size;
+	HANDLE file;
+	int times;
+} Container;
+
+BOOL OpenPortForSending(HANDLE file, int packet_size, int frequency, char* protocol)
 {
 	WSADATA wsaData;
 	SOCKET ListenSocket, AcceptSocket;
 	SOCKADDR_IN InternetAddr;
-	DWORD Flags;
 	DWORD ThreadId;
 	DWORD RecvBytes;
 	INT Ret;
+	Container c;
+
+	c.file = file;
+	c.packet_size = packet_size;
+	c.times = frequency;
+
+	fin = FALSE;
 
 	InitializeCriticalSection(&CriticalSection);
 
@@ -56,14 +62,14 @@ void main(void)
 	{
 		printf("WSAStartup failed with error %d\n", Ret);
 		WSACleanup();
-		return;
+		return FALSE;
 	}
 
 	if ((ListenSocket = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0,
 		WSA_FLAG_OVERLAPPED)) == INVALID_SOCKET)
 	{
 		printf("Failed to get a socket %d\n", WSAGetLastError());
-		return;
+		return FALSE;
 	}
 
 	InternetAddr.sin_family = AF_INET;
@@ -73,13 +79,13 @@ void main(void)
 	if (bind(ListenSocket, (PSOCKADDR)&InternetAddr, sizeof(InternetAddr)) == SOCKET_ERROR)
 	{
 		printf("bind() failed with error %d\n", WSAGetLastError());
-		return;
+		return FALSE;
 	}
 
 	if (listen(ListenSocket, 5))
 	{
 		printf("listen() failed with error %d\n", WSAGetLastError());
-		return;
+		return FALSE;
 	}
 
 	// Setup the listening socket for connections.
@@ -88,33 +94,40 @@ void main(void)
 		WSA_FLAG_OVERLAPPED)) == INVALID_SOCKET)
 	{
 		printf("Failed to get a socket %d\n", WSAGetLastError());
-		return;
+		return FALSE;
 	}
 
 	if ((EventArray[0] = WSACreateEvent()) == WSA_INVALID_EVENT)
 	{
 		printf("WSACreateEvent failed with error %d\n", WSAGetLastError());
-		return;
+		return FALSE;
 	}
 
-	// Create a thread to service overlapped requests
-
-	if (CreateThread(NULL, 0, ProcessIO, NULL, 0, &ThreadId) == NULL)
+	if (CreateThread(NULL, 0, ProcessIO, &c, 0, &ThreadId) == NULL)
 	{
 		printf("CreateThread failed with error %d\n", GetLastError());
-		return;
+		return FALSE;
 	}
 
 	EventTotal = 1;
+	IncomingConnections(ListenSocket);
+	return TRUE;
+}
 
-	while (TRUE)
+BOOL IncomingConnections(SOCKET ListenSocket)
+{
+	SOCKET AcceptSocket;
+	DWORD Flags;
+	DWORD RecvBytes;
+	
+	while (1)
 	{
 		// Accept inbound connections
 
 		if ((AcceptSocket = accept(ListenSocket, NULL, NULL)) == INVALID_SOCKET)
 		{
 			printf("accept failed with error %d\n", WSAGetLastError());
-			return;
+			return FALSE;
 		}
 
 		EnterCriticalSection(&CriticalSection);
@@ -125,7 +138,7 @@ void main(void)
 			sizeof(SOCKET_INFORMATION))) == NULL)
 		{
 			printf("GlobalAlloc() failed with error %d\n", GetLastError());
-			return;
+			return FALSE;
 		}
 
 		// Fill in the details of our accepted socket.
@@ -141,7 +154,7 @@ void main(void)
 			WSACreateEvent()) == WSA_INVALID_EVENT)
 		{
 			printf("WSACreateEvent() failed with error %d\n", WSAGetLastError());
-			return;
+			return FALSE;
 		}
 
 		// Post a WSARecv request to to begin receiving data on the socket
@@ -154,7 +167,7 @@ void main(void)
 			if (WSAGetLastError() != ERROR_IO_PENDING)
 			{
 				printf("WSARecv() failed with error %d\n", WSAGetLastError());
-				return;
+				return FALSE;
 			}
 		}
 
@@ -169,14 +182,14 @@ void main(void)
 		if (WSASetEvent(EventArray[0]) == FALSE)
 		{
 			printf("WSASetEvent failed with error %d\n", WSAGetLastError());
-			return;
+			return FALSE;
 		}
 	}
 
+	return TRUE;
 }
 
-
-DWORD WINAPI ProcessIO(LPVOID lpParameter)
+DWORD WINAPI ProcessIO(LPVOID container)
 {
 	DWORD Index;
 	DWORD Flags;
@@ -184,10 +197,21 @@ DWORD WINAPI ProcessIO(LPVOID lpParameter)
 	DWORD BytesTransferred;
 	DWORD i;
 	DWORD RecvBytes, SendBytes;
+	DWORD read;
+	BOOL last = FALSE;
+	Container* c = (Container*)container;
+
+	int size = c->packet_size;
+
+	char buffer[4096] = { '\0' };
+	int hits = 0;
+	int sent = 0;
+	int count = 0;
 
 	// Process asynchronous WSASend, WSARecv requests.
-
-	while (TRUE)
+	//ReadFile(fileSave, lol, haha, &read, NULL);
+	
+	while (1)
 	{
 
 		if ((Index = WSAWaitForMultipleEvents(EventTotal, EventArray, FALSE,
@@ -210,10 +234,10 @@ DWORD WINAPI ProcessIO(LPVOID lpParameter)
 		WSAResetEvent(EventArray[Index - WSA_WAIT_EVENT_0]);
 
 		if (WSAGetOverlappedResult(SI->Socket, &(SI->Overlapped), &BytesTransferred,
-			FALSE, &Flags) == FALSE || BytesTransferred == 0)
+			FALSE, &Flags) == FALSE || BytesTransferred == 0 || fin)
 		{
 			printf("Closing socket %d\n", SI->Socket);
-
+			hits = 0;
 			if (closesocket(SI->Socket) == SOCKET_ERROR)
 			{
 				printf("closesocket() failed with error %d\n", WSAGetLastError());
@@ -236,10 +260,8 @@ DWORD WINAPI ProcessIO(LPVOID lpParameter)
 				}
 
 			EventTotal--;
-
 			LeaveCriticalSection(&CriticalSection);
-
-			continue;
+			return TRUE;
 		}
 
 		// Check to see if the BytesRECV field equals zero. If this is so, then
@@ -258,7 +280,14 @@ DWORD WINAPI ProcessIO(LPVOID lpParameter)
 
 		if (SI->BytesRECV > SI->BytesSEND)
 		{
-
+			
+			if (ReadFile(c->file, buffer, c->packet_size, &read, NULL) && read < c->packet_size)
+			{
+				last = TRUE;
+				SetFilePointer(c->file, NULL, NULL, FILE_BEGIN);
+				count++;
+			}
+			
 			// Post another WSASend() request.
 			// Since WSASend() is not gauranteed to send all of the bytes requested,
 			// continue posting WSASend() calls until all received bytes are sent.
@@ -266,9 +295,14 @@ DWORD WINAPI ProcessIO(LPVOID lpParameter)
 			ZeroMemory(&(SI->Overlapped), sizeof(WSAOVERLAPPED));
 			SI->Overlapped.hEvent = EventArray[Index - WSA_WAIT_EVENT_0];
 
-			SI->DataBuf.buf = SI->Buffer + SI->BytesSEND;
-			SI->DataBuf.len = SI->BytesRECV - SI->BytesSEND;
-			
+			SI->DataBuf.buf = buffer;
+			SI->DataBuf.len = read;
+			if (SI->DataBuf.len == 0)
+			{
+				SI->DataBuf.buf[0] = '\0';
+				SI->DataBuf.len = 1;
+			}
+
 			if (WSASend(SI->Socket, &(SI->DataBuf), 1, &SendBytes, 0,
 				&(SI->Overlapped), NULL) == SOCKET_ERROR)
 			{
@@ -277,6 +311,21 @@ DWORD WINAPI ProcessIO(LPVOID lpParameter)
 					printf("WSASend() failed with error %d\n", WSAGetLastError());
 					return 0;
 				}
+			}
+			else {
+				hits++;
+				
+			}
+
+			if (count >= c->times)
+			{
+				SI->DataBuf.buf[0] = '\0';
+				SI->DataBuf.len = 1;
+				WSASend(SI->Socket, &(SI->DataBuf), 1, &SendBytes, 0,
+					&(SI->Overlapped), NULL);
+				fin = TRUE;
+				return TRUE;
+				
 			}
 		}
 		else
@@ -303,4 +352,4 @@ DWORD WINAPI ProcessIO(LPVOID lpParameter)
 			}
 		}
 	}
-}
+}*/
