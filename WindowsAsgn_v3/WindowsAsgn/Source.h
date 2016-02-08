@@ -76,9 +76,14 @@ that are used with this program.
 #define SERVICE_TO_PORT	3
 #define PORT_TO_SERVICE	4
 
+#define EOT 0x04
+#define ACK 0x06
 
+#define MAXBUF	8192
 void updateStatistic(HWND hList, int avg, int sent, int lost, int data, int time);
 HWND CreateListView(HWND parent);
+void GetTextFromHost();
+void GetTextFromPort();
 
 /*---------------------------------------------------------------------------------
 --	FUNCTION:		Get Text From Input

@@ -46,7 +46,7 @@ the Windows Procedure which will handle all windows events.
 #include <CommCtrl.h>
 
 HWND hwnd, inputHost, inputPort, combobox, convertBtn, clearBtn, inputGroupBox, listGroupBox, listview;
-HANDLE fileRead, fileSave;
+HANDLE fileRead = INVALID_HANDLE_VALUE, fileSave = INVALID_HANDLE_VALUE;
 HMENU input_id = (HMENU)50;
 HMENU ID = (HMENU)100;
 HMENU combo_id = (HMENU)150;
@@ -365,6 +365,11 @@ HMENU CreateMenuOptions(void)
 	return hMenu;
 }
 
+BOOL sendfile(HANDLE file)
+{
+	return TRUE;
+}
+
 void CreateInputText(HWND hwnd)
 {
 	/* Container for the ComboBox drop down list. */
@@ -416,7 +421,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 	TCHAR* textInput;
 	DWORD haha = 1000;
 	DWORD read = 0;
-	TCHAR lol[1024] = { '\0' };
+	static int count = 0;
+	TCHAR writeBuffer[MAXBUF] = { '\0' };
+	static BOOL last = FALSE;
+	static BOOL sending = FALSE;
+
 
 	switch (Message)
 	{
@@ -481,8 +490,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				}
 				else
 				{
-					SocketInfo->DataBuf.buf = SocketInfo->Buffer;
-					SocketInfo->DataBuf.len = DATA_BUFSIZE;
+					SocketInfo->DataBuf.buf = '\0';
+					SocketInfo->DataBuf.len = 1;
 
 					Flags = 0;
 					if (WSARecv(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &RecvBytes,
@@ -498,27 +507,62 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 					else // No error so update the byte count
 					{
 						SocketInfo->BytesRECV = RecvBytes;
+						if (RecvBytes == 1 && SocketInfo->DataBuf.buf[0] == ACK)
+						{
+							PostMessage(hwnd, WM_SOCKET, wParam, FD_WRITE);
+						}
 					}
 				}
+				break;
 
 				// DO NOT BREAK HERE SINCE WE GOT A SUCCESSFUL RECV. Go ahead
 				// and begin writing data to the client.
 
 			case FD_WRITE:
 
+				if (fileRead == INVALID_HANDLE_VALUE || !sending)
+				{
+					OutputDebugString("Can't send file.\n");
+					break;
+				}
+
+
+				if (count >= frequency) {
+					break;
+				}
+
+				if (ReadFile(fileRead, writeBuffer, packet_size, &read, NULL) && read < packet_size)
+				{
+					last = TRUE;
+					SetFilePointer(fileRead, NULL, NULL, FILE_BEGIN);
+					count++;
+				}
 				SocketInfo = GetSocketInformation(wParam);
 
 				if (SocketInfo->BytesRECV > SocketInfo->BytesSEND)
 				{
-					SocketInfo->DataBuf.buf = SocketInfo->Buffer + SocketInfo->BytesSEND;
-					SocketInfo->DataBuf.len = SocketInfo->BytesRECV - SocketInfo->BytesSEND;
+					SocketInfo->DataBuf.buf = writeBuffer;
+					SocketInfo->DataBuf.len = read;
 
-					if (WSASend(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &SendBytes, 0,
+					if (read == 0)
+					{
+						SocketInfo->DataBuf.buf[0] = EOT;
+						SocketInfo->DataBuf.len = 1;
+					}
+
+					if (WSASend(SocketInfo->Socket, 
+						&(SocketInfo->DataBuf), 
+						1, 
+						&SendBytes, 
+						0,
 						NULL, NULL) == SOCKET_ERROR)
 					{
 						if (WSAGetLastError() != WSAEWOULDBLOCK)
 						{
-							printf("WSASend() failed with error %d\n", WSAGetLastError());
+							OutputDebugString("WSASend() failed with error");
+							sprintf_s(pants, "%d", WSAGetLastError());
+							OutputDebugString(pants);
+							OutputDebugString("\n");
 							FreeSocketInformation(wParam);
 							return 0;
 						}
@@ -526,6 +570,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 					else // No error so update the byte count
 					{
 						SocketInfo->BytesSEND += SendBytes;
+						packets_sent++;
 					}
 				}
 
@@ -595,6 +640,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			frequency = 200;
 			break;
 		case ID_FILE_CONNECT:
+			GetTextFromHost();
+			GetTextFromPort();
+			sending = TRUE;
+			PostMessage(hwnd, WM_SOCKET, wParam, FD_WRITE);
 			//OpenPortForSending(fileRead, packet_size, frequency, protocol);
 			break;
 		case ID_FILE_SELECT:
@@ -617,18 +666,18 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 	return 0;
 }
 
-TCHAR* GetTextFromHost() {
+void GetTextFromHost() {
 	int len = SendMessage(inputHost, WM_GETTEXTLENGTH, 0, 0);
 	TCHAR* buffer = new char[len+1];
 	SendMessage(inputHost, WM_GETTEXT, (WPARAM)len+1, (LPARAM)buffer);
-	return buffer;
+	strncpy_s(ip_text, buffer, sizeof(ip_text));
 }
 
-TCHAR* GetTextFromPort() {
+void GetTextFromPort() {
 	int len = SendMessage(inputPort, WM_GETTEXTLENGTH, 0, 0);
 	TCHAR* buffer = new char[len + 1];
 	SendMessage(inputPort, WM_GETTEXT, (WPARAM)len + 1, (LPARAM)buffer);
-	return buffer;
+	sscanf_s(buffer, "%zu" , &port);
 }
 
 void SetOutputText(TCHAR* text, int len) {
