@@ -43,7 +43,10 @@ the Windows Procedure which will handle all windows events.
 #include "Async.h"
 #include "Source.h"
 #include "resource.h"
+#include <Mswsock.h>
 #include <CommCtrl.h>
+
+#pragma comment(lib, "Mswsock.lib")
 
 HWND hwnd, inputHost, inputPort, combobox, convertBtn, clearBtn, inputGroupBox, listGroupBox, listview;
 HANDLE fileRead = INVALID_HANDLE_VALUE, fileSave = INVALID_HANDLE_VALUE;
@@ -415,7 +418,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 	HDC hdc;
 	HMENU hMenu = 0, hSubMenu;
 	SOCKET Accept;
-	LPSOCKET_INFORMATION SocketInfo;
+	static LPSOCKET_INFORMATION SocketInfo;
 	DWORD RecvBytes, SendBytes;
 	DWORD Flags;
 	TCHAR* textInput;
@@ -437,9 +440,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 		updateStatistic(listview, 1, 2, 3, 4, 5);
 
 		SetMenu(hwnd, hMenu);
-
-		
-
 		break;
 	case WM_SOCKET:
 		if (WSAGETSELECTERROR(lParam))
@@ -513,14 +513,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 						}
 					}
 				}
-				break;
 
 				// DO NOT BREAK HERE SINCE WE GOT A SUCCESSFUL RECV. Go ahead
 				// and begin writing data to the client.
 
 			case FD_WRITE:
 
-				if (fileRead == INVALID_HANDLE_VALUE || !sending)
+				if (fileRead == INVALID_HANDLE_VALUE)
 				{
 					OutputDebugString("Can't send file.\n");
 					break;
@@ -531,17 +530,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 					break;
 				}
 
-				if (ReadFile(fileRead, writeBuffer, packet_size, &read, NULL) && read < packet_size)
-				{
-					last = TRUE;
-					SetFilePointer(fileRead, NULL, NULL, FILE_BEGIN);
-					count++;
-				}
-				SocketInfo = GetSocketInformation(wParam);
+				if (sending) {
+					TransmitFile(SocketInfo->Socket, fileRead, packet_size, read, NULL, NULL, TF_REUSE_SOCKET);
+				
+					
 
-				if (SocketInfo->BytesRECV > SocketInfo->BytesSEND)
-				{
-					SocketInfo->DataBuf.buf = writeBuffer;
+					/*SocketInfo->DataBuf.buf = writeBuffer;
 					SocketInfo->DataBuf.len = read;
 
 					if (read == 0)
@@ -550,10 +544,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 						SocketInfo->DataBuf.len = 1;
 					}
 
-					if (WSASend(SocketInfo->Socket, 
-						&(SocketInfo->DataBuf), 
-						1, 
-						&SendBytes, 
+					if (WSASend(SocketInfo->Socket,
+						&(SocketInfo->DataBuf),
+						1,
+						&SendBytes,
 						0,
 						NULL, NULL) == SOCKET_ERROR)
 					{
@@ -572,30 +566,30 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 						SocketInfo->BytesSEND += SendBytes;
 						packets_sent++;
 					}
-				}
 
-				if (SocketInfo->BytesSEND == SocketInfo->BytesRECV)
-				{
-					SocketInfo->BytesSEND = 0;
-					SocketInfo->BytesRECV = 0;
 
-					// If a RECV occurred during our SENDs then we need to post an FD_READ
-					// notification on the socket.
-
-					if (SocketInfo->RecvPosted == TRUE)
+					if (SocketInfo->BytesSEND == SocketInfo->BytesRECV)
 					{
-						SocketInfo->RecvPosted = FALSE;
-						PostMessage(hwnd, WM_SOCKET, wParam, FD_READ);
-					}
-				}
+						SocketInfo->BytesSEND = 0;
+						SocketInfo->BytesRECV = 0;
 
+						// If a RECV occurred during our SENDs then we need to post an FD_READ
+						// notification on the socket.
+
+						if (SocketInfo->RecvPosted == TRUE)
+						{
+							SocketInfo->RecvPosted = FALSE;
+							PostMessage(hwnd, WM_SOCKET, wParam, FD_READ);
+						}
+					}*/
+				}
 				break;
 
 			case FD_CLOSE:
 
 				printf("Closing socket %d\n", wParam);
 				FreeSocketInformation(wParam);
-
+				WSACleanup();
 				break;
 			}
 		}
