@@ -68,11 +68,14 @@ char protocol[4] = "TCP";
 int packet_size = 1000;
 int frequency = 1;
 
+BOOL Server = false;
+BOOL Client = false;
+
 TCHAR Name[] = TEXT("The Amazing Convert-o-matic");
 
 LPSOCKET_INFORMATION SocketInfoList;
 
-#define WM_SOCKET (WM_USER + 1)
+#define WM_SOCKET 225
 
 void CreateSocketInformation(SOCKET s);
 LPSOCKET_INFORMATION GetSocketInformation(SOCKET s);
@@ -180,10 +183,6 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hprevInstance,
 {
 	MSG Msg;
 	WNDCLASSEX Wcl;
-	DWORD Ret;
-	SOCKET Listen;
-	SOCKADDR_IN InternetAddr;
-	WSADATA wsaData;
 
 	Wcl.cbSize = sizeof(WNDCLASSEX);
 	Wcl.style = CS_HREDRAW | CS_VREDRAW;
@@ -205,49 +204,18 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hprevInstance,
 		return 0;
 
 	hwnd = CreateWindow(Name, 
-						Name, 
-						WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
-						CW_USEDEFAULT, 
-						CW_USEDEFAULT,
-						600, 
-						500, 
-						NULL, 
-						NULL, 
-						hInst,
-						NULL);
+		Name, 
+		WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
+		CW_USEDEFAULT, 
+		CW_USEDEFAULT,
+		600, 
+		500, 
+		NULL, 
+		NULL, 
+		hInst,
+		NULL);
 	ShowWindow(hwnd, nCmdShow);
 	UpdateWindow(hwnd);
-
-	// Prepare echo server
-	if ((Ret = WSAStartup(0x0202, &wsaData)) != 0)
-	{
-		printf("WSAStartup failed with error %d\n", Ret);
-		return -1;
-	}
-
-	if ((Listen = socket(PF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET)
-	{
-		printf("socket() failed with error %d\n", WSAGetLastError());
-		return -1;
-	}
-
-	WSAAsyncSelect(Listen, hwnd, WM_SOCKET, FD_ACCEPT | FD_CLOSE);
-
-	InternetAddr.sin_family = AF_INET;
-	InternetAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-	InternetAddr.sin_port = htons(PORT);
-
-	if (bind(Listen, (PSOCKADDR)&InternetAddr, sizeof(InternetAddr)) == SOCKET_ERROR)
-	{
-		printf("bind() failed with error %d\n", WSAGetLastError());
-		return -1;
-	}
-
-	if (listen(Listen, 5))
-	{
-		printf("listen() failed with error %d\n", WSAGetLastError());
-		return -1;
-	}
 
 	while (GetMessage(&Msg, NULL, 0, 0))
 	{
@@ -258,7 +226,57 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hprevInstance,
 	return (int)Msg.wParam;
 }
 
-HANDLE saveFile() {
+void SetServer() {
+	DWORD Ret;
+	SOCKET Listen;
+	SOCKADDR_IN InternetAddr;
+	WSADATA wsaData;
+	// Prepare echo server
+	WORD wVersionRequested = MAKEWORD(2, 2);
+	if ((Ret = WSAStartup(wVersionRequested, &wsaData)) != 0)
+	{
+		printf("WSAStartup failed with error %d\n", Ret);
+		return;
+	}
+
+	if ((Listen = socket(PF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET)
+	{
+		printf("socket() failed with error %d\n", WSAGetLastError());
+		return;
+	}
+
+	WSAAsyncSelect(Listen, hwnd, WM_SOCKET, FD_ACCEPT | FD_CLOSE | FD_READ | FD_WRITE);
+	memset((char *)&InternetAddr, 0, sizeof(struct sockaddr_in));
+	InternetAddr.sin_family = AF_INET;
+	InternetAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+	InternetAddr.sin_port = htons(PORT);
+
+
+	if (bind(Listen, (PSOCKADDR)&InternetAddr, sizeof(InternetAddr)) == SOCKET_ERROR)
+	{
+		printf("bind() failed with error %d\n", WSAGetLastError());
+		return;
+	}
+
+	if (listen(Listen, 5))
+	{
+		printf("listen() failed with error %d\n", WSAGetLastError());
+		return;
+	}
+
+	Server = TRUE;
+	Client = FALSE;
+
+}
+
+void SetClient()
+{
+	Client = TRUE;
+	Server = FALSE;
+}
+
+HANDLE saveFile() 
+{
 	TCHAR   szFile[MAX_PATH] = TEXT("\0");
 	OPENFILENAME   ofn;
 	HANDLE hFile = INVALID_HANDLE_VALUE;
@@ -363,6 +381,11 @@ HMENU CreateMenuOptions(void)
 	AppendMenu(hSubMenu, MF_STRING, ID_FREQUENCY_100, "&100 times");
 	AppendMenu(hSubMenu, MF_STRING, ID_FREQUENCY_200, "&200 times");
 	AppendMenu(hMenu, MF_STRING | MF_POPUP, (UINT)hSubMenu, "&Freqency");
+
+	hSubMenu = CreatePopupMenu();
+	AppendMenu(hSubMenu, MF_STRING, ID_SERVER, "&Server");
+	AppendMenu(hSubMenu, MF_STRING, ID_CLIENT, "&Client");
+	AppendMenu(hMenu, MF_STRING | MF_POPUP, (UINT)hSubMenu, "&Server/Client");
 
 	return hMenu;
 }
@@ -513,7 +536,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 	TCHAR writeBuffer[MAXBUF] = { '\0' };
 	static BOOL finished = FALSE;
 	static BOOL sending = FALSE;
+	static BOOL connected = FALSE;
 	char datagram[MAXBUF] = { '\0' };
+	struct	sockaddr_in server, client;
 
 
 	switch (Message)
@@ -537,6 +562,23 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 		{
 			switch (WSAGETSELECTEVENT(lParam))
 			{
+			case FD_CONNECT:
+				if (WSAGETSELECTERROR(lParam) == 0)
+				{
+					OutputDebugString("FD_CONNECT Connected.\n");
+					memset(SocketInfo->DataBuf.buf, 0, sizeof(SocketInfo->DataBuf.buf));
+					std::string temp = GetInitMessage(fileRead);
+					memcpy_s(SocketInfo->DataBuf.buf, sizeof(SocketInfo->DataBuf.buf), temp.c_str(), sizeof(temp.c_str()));
+
+					send(Accept, SocketInfo->DataBuf.buf, SocketInfo->DataBuf.len, 0);
+				}
+				else
+				{
+					OutputDebugString("Could not connect properly.\n");
+					break;
+				}
+				break;
+
 			case FD_ACCEPT:
 				char pants[100];
 				if ((Accept = accept(wParam, NULL, NULL)) == INVALID_SOCKET)
@@ -560,6 +602,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				OutputDebugString(" connected.\n");
 
 				WSAAsyncSelect(Accept, hwnd, WM_SOCKET, FD_READ | FD_WRITE | FD_CLOSE);
+				connected = TRUE;
 
 				break;
 
@@ -580,14 +623,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 					SocketInfo->DataBuf.len = DATA_BUFSIZE;
 
 					Flags = 0;
-					if (WSARecv(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &RecvBytes,
-						&Flags, NULL, NULL) == SOCKET_ERROR)
+					if (WSARecv(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &RecvBytes, &Flags,
+						&(SocketInfo->Overlapped), NULL) == SOCKET_ERROR)
 					{
-						if (WSAGetLastError() != WSAEWOULDBLOCK)
+						if (WSAGetLastError() != WSA_IO_PENDING)
 						{
 							printf("WSARecv() failed with error %d\n", WSAGetLastError());
-							FreeSocketInformation(wParam);
-							return 0;
+							return FALSE;
 						}
 					}
 					else // No error so update the byte count
@@ -602,10 +644,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			case FD_WRITE:
 
 				SocketInfo = GetSocketInformation(wParam);
-				if (!sending) {
-					GetInitMessage(fileRead);
+				if (!sending && connected) {
 					finished = false;
-					
 				}
 				else {
 					if (!finished) {
@@ -621,7 +661,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 					SocketInfo->DataBuf.len = SocketInfo->BytesRECV - SocketInfo->BytesSEND;
 
 					if (WSASend(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &SendBytes, 0,
-						NULL, NULL) == SOCKET_ERROR)
+						&(SocketInfo->Overlapped), NULL) == SOCKET_ERROR)
 					{
 						if (WSAGetLastError() != WSAEWOULDBLOCK)
 						{
@@ -717,6 +757,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				OutputDebugString(".\n");
 				FreeSocketInformation(wParam);
 				WSACleanup();
+				connected = FALSE;
 				break;
 			}
 		}
@@ -760,15 +801,44 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 		case ID_FREQUENCY_200:
 			frequency = 200;
 			break;
+		case ID_CLIENT:
+			SetClient();
+			break;
 		case ID_FILE_SEND:
-			GetTextFromHost();
+			if (!Client)
+				break;
+			Accept = socket(PF_INET, SOCK_STREAM, 0);
+			if (Accept == INVALID_SOCKET)
+			{
+				OutputDebugString("File send failed.\n");
+				break;
+			}
+
+			
+			if (connect(Accept, (struct sockaddr far *)	&client, sizeof(client)) == SOCKET_ERROR)
+			{
+				// error occurred on connect call. However expecting
+					// to get WSAEWOULDBLOCK error which means connection
+					// in progress.
+					if (WSAGetLastError() != WSAEWOULDBLOCK)
+					{
+						OutputDebugString("WSA woud block error. \n");
+						break;
+					}
+			}
+			/*GetTextFromHost();
 			GetTextFromPort();
 			SocketInfo = GetSocketInformation(Accept);
 			
 			GetInitMessage(fileRead);
 			strcpy_s(datagram, GetInitMessage(fileRead).c_str());
 			
-			send(SocketInfo->Socket, datagram, strlen(datagram), 0);
+			send(SocketInfo->Socket, datagram, strlen(datagram), 0);*/
+			
+
+			//WSARecv(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &RecvBytes,
+				//&Flags, NULL, NULL);
+			//recv(SocketInfo->Socket, datagram, packet_size, 0);
 			break;
 		case ID_FILE_SELECT:
 			fileRead = selectFile();
@@ -851,7 +921,7 @@ void CreateSocketInformation(SOCKET s)
 	SI->RecvPosted = FALSE;
 	SI->BytesSEND = 0;
 	SI->BytesRECV = 0;
-
+	ZeroMemory(&(SI->Overlapped), sizeof(WSAOVERLAPPED));
 	SI->Next = SocketInfoList;
 
 	SocketInfoList = SI;

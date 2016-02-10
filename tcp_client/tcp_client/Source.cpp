@@ -1,79 +1,67 @@
 /*---------------------------------------------------------------------------------------
---	SOURCE FILE:		tcp_clnt.c - A simple TCP client program.
+--	SOURCE FILE:		tcp_svr.c -   A simple echo server using TCP
 --
---	PROGRAM:			tclnt.exe
+--	PROGRAM:			tsvr.exe
 --
 --	FUNCTIONS:			Winsock 2 API
 --
---	DATE:				January 11, 2006
+--	DATE:				January 6, 2008
 --
 --	REVISIONS:			(Date and Description)
---
---						Oct. 1, 2007 (A. Abdulla):
---
---						Changed the read loop to better handle the
---						blocking recv call.
 --
 --	DESIGNERS:			Aman Abdulla
 --
 --	PROGRAMMERS:		Aman Abdulla
 --
 --	NOTES:
---	The program will establish a TCP connection to a user specifed server.
---  The server can be specified using a fully qualified domain name or and
---	IP address. After the connection has been established the user will be
---  prompted for date. The date string is then sent to the server and the
---  response (echo) back from the server is displayed.
+--	The program will accept TCP connections from client machines.
+--  The program will read data from the client socket and simply echo it back.
 ---------------------------------------------------------------------------------------*/
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 #include <stdio.h>
 #include <winsock2.h>
 #include <errno.h>
-#pragma comment (lib, "Ws2_32.lib")
-//#include <string.h>
-//#include <memory.h>
+#pragma comment(lib, "Ws2_32.lib")
 
-#define SERVER_TCP_PORT			7000	// Default port
-#define BUFSIZE					1024		// Buffer length
+#define SERVER_TCP_PORT 5150	// Default port
+#define BUFSIZE	255				//Buffer length
+#define TRUE	1
 
 int main(int argc, char **argv)
 {
-	int n, ns, bytes_to_read;
-	int port, err;
-	SOCKET sd;
-	struct hostent	*hp;
-	struct sockaddr_in server;
-	char  *host, *bp, rbuf[BUFSIZE], sbuf[1], **pptr;
+	int	n, ns, bytes_to_read;
+	int	client_len, port, err;
+	SOCKET sd, new_sd;
+	struct	sockaddr_in server, client;
+	char	*bp, buf[BUFSIZE];
 	WSADATA WSAData;
 	WORD wVersionRequested;
 
 	switch (argc)
 	{
-	case 2:
-		host = argv[1];	// Host name
-		port = SERVER_TCP_PORT;
+	case 1:
+		port = SERVER_TCP_PORT;	// Use the default port
 		break;
-	case 3:
-		host = argv[1];
-		port = atoi(argv[2]);	// User specified port
+	case 2:
+		port = atoi(argv[1]);	// Get user specified port
 		break;
 	default:
-		fprintf(stderr, "Usage: %s host [port]\n", argv[0]);
+		fprintf(stderr, "Usage: %s [port]\n", argv[0]);
 		exit(1);
 	}
 
 	wVersionRequested = MAKEWORD(2, 2);
 	err = WSAStartup(wVersionRequested, &WSAData);
-	if (err != 0) //No usable DLL
+	if (err != 0) //No useable DLL
 	{
 		printf("DLL not found!\n");
 		exit(1);
 	}
 
-	// Create the socket
+	// Create a stream socket
 	if ((sd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
 	{
-		perror("Cannot create socket");
+		perror("Can't create a socket");
 		exit(1);
 	}
 
@@ -81,72 +69,42 @@ int main(int argc, char **argv)
 	memset((char *)&server, 0, sizeof(struct sockaddr_in));
 	server.sin_family = AF_INET;
 	server.sin_port = htons(port);
-	if ((hp = gethostbyname(host)) == NULL)
+	server.sin_addr.s_addr = htonl(INADDR_ANY); // Accept connections from any client
+
+												// Bind an address to the socket
+	if (bind(sd, (struct sockaddr *)&server, sizeof(server)) == -1)
 	{
-		fprintf(stderr, "Unknown server address\n");
+		perror("Can't bind name to socket");
 		exit(1);
 	}
 
-	// Copy the server address
-	memcpy((char *)&server.sin_addr, hp->h_addr, hp->h_length);
+	// Listen for connections
+	// queue up to 5 connect requests
+	listen(sd, 5);
 
-	// Connecting to the server
-	if (connect(sd, (struct sockaddr *)&server, sizeof(server)) == -1)
+	while (TRUE)
 	{
-		fprintf(stderr, "Can't connect to server\n");
-		perror("connect");
-		exit(1);
-	}
-	printf("Connected:    Server Name: %s\n", hp->h_name);
-	pptr = hp->h_addr_list;
-	printf("\t\tIP Address: %s\n", inet_ntoa(server.sin_addr));
-	printf("Transmiting:\n");
-	memset((char *)sbuf, 0, sizeof(sbuf));
-	//sprintf_s(sbuf, "ready");
-	//fgets(sbuf, BUFSIZE, stdin); // get user's text
-
-				// Transmit data through the socket
-	ns = send(sd, sbuf, 1, 0);
-	printf("Receive:\n");
-	bp = rbuf;
-	bytes_to_read = BUFSIZE;
-	int total = 0;
-	// client makes repeated calls to recv until no more data is expected to arrive.
-	while (1)
-	{
-		n = recv(sd, bp, bytes_to_read, 0);
-
-		if (n == -1)
-			break;
-		if (n == 0)
-			continue;
-
-		printf("[[[%d]]] ", n);
-		
-		for (int i = 0; i < n; i++)
+		client_len = sizeof(client);
+		if ((new_sd = accept(sd, (struct sockaddr *)&client, &client_len)) == -1)
 		{
-			printf("%c", bp[i]);
+			fprintf(stderr, "Can't accept client\n");
+			exit(1);
 		}
-		send(sd, '\0', 1, 0);
 
-
-		/*if (bp[n - 1] != '\0') {
-			send(sd, sbuf, 1, 0);
-			total++;
-		}
-		else {
-			break;
-		} 
-		bp += n;
-		bytes_to_read -= n;
-		if (n == 0)
+		printf(" Remote Address:  %s\n", inet_ntoa(client.sin_addr));
+		bp = buf;
+		bytes_to_read = BUFSIZE;
+		while ((n = recv(new_sd, bp, bytes_to_read, 0)) < BUFSIZE)
 		{
-			printf("no more.\n");
-			break;
-		}*/
-			
+			bp += n;
+			bytes_to_read -= n;
+			if (n == 0)
+				break;
+		}
+
+		ns = send(new_sd, buf, BUFSIZE, 0);
+		closesocket(new_sd);
 	}
-	printf("%s\n", rbuf);
 	closesocket(sd);
 	WSACleanup();
 	exit(0);
