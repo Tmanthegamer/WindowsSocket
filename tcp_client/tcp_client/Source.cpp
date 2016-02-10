@@ -112,33 +112,38 @@ int main(int argc, char **argv)
 	bytes_to_read = BUFSIZE;
 	int total = 0;
 	// client makes repeated calls to recv until no more data is expected to arrive.
-	while ((n = recv(sd, bp, bytes_to_read, 0)) < BUFSIZE)
+	while (1)
 	{
-		
+		n = recv(sd, bp, bytes_to_read, 0);
+
 		if (n == -1)
 			break;
+		if (n == 0)
+			continue;
 
+		printf("[[[%d]]] ", n);
 		
-		
-		printf("[[[%d]]]\n", n);
-		
-		if (bp[n - 1] != '\0') {
+		for (int i = 0; i < n; i++)
+		{
+			printf("%c", bp[i]);
+		}
+		send(sd, '\0', 1, 0);
+
+
+		/*if (bp[n - 1] != '\0') {
 			send(sd, sbuf, 1, 0);
 			total++;
 		}
 		else {
 			break;
-		}
-		/*if (bp[n] == '\0') {
-			printf("spank\n");
-		}*/
+		} 
 		bp += n;
 		bytes_to_read -= n;
 		if (n == 0)
 		{
 			printf("no more.\n");
 			break;
-		}
+		}*/
 			
 	}
 	printf("%s\n", rbuf);

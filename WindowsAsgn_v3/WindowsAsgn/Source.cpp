@@ -334,11 +334,10 @@ HANDLE selectFile() {
 
 HMENU CreateMenuOptions(void)
 {
-	
 	HMENU hMenu = CreateMenu();
 
 	HMENU hSubMenu = CreatePopupMenu();
-	AppendMenu(hSubMenu, MF_STRING, ID_FILE_CONNECT, "&Connect");
+	AppendMenu(hSubMenu, MF_STRING, ID_FILE_SEND, "&Send");
 	AppendMenu(hSubMenu, MF_STRING, ID_FILE_SELECT, "&Select");
 	AppendMenu(hSubMenu, MF_STRING, ID_FILE_SAVE, "&Save");
 	AppendMenu(hSubMenu, MF_STRING, ID_FILE_EXIT, "&Exit");
@@ -368,9 +367,93 @@ HMENU CreateMenuOptions(void)
 	return hMenu;
 }
 
-BOOL sendfile(HANDLE file)
+BOOL appendtofile(HANDLE file, char* segment, int size)
 {
-	return TRUE;
+	char databuf[MAXBUF] = { '\0' };
+	DWORD BytesWroteToFile = 0;
+	
+	if (WriteFile(file, segment, size, &BytesWroteToFile, NULL) == FALSE)
+	{
+		return FALSE;
+	}
+	else
+	{
+		return TRUE;
+	}
+}
+
+std::string GetInitMessage(HANDLE file)
+{
+	long FileSize = 0;
+	int totalPackets = 0;
+	LARGE_INTEGER size;
+	std::string temp;
+
+	char initmsg[MAXBUF] = { '\0' };
+
+	if (!GetFileSizeEx(file, &size))
+	{
+		//CloseHandle(file);
+		return FALSE; // error condition, could call GetLastError to find out more
+	}
+
+	FileSize = size.QuadPart;
+	totalPackets = FileSize / packet_size;
+	if (FileSize % packet_size > 0)
+	{
+		totalPackets += 1;
+	}
+	totalPackets *= frequency;
+
+	sprintf_s(initmsg, "size: %d num: %d", packet_size, totalPackets);
+	temp = initmsg;
+	return temp;
+}
+
+std::vector<std::string> GetPacketsFromFile(HANDLE file)
+{
+	char databuf[MAXBUF] = { '\0' };
+	char c[10];
+	
+	std::vector<std::string> packetarray;
+
+	DWORD BytesReadFromFile = 0;
+	DWORD SendBytes = 0;
+	DWORD ReadBytes = 0;
+	int count = 0;
+
+	while (count < frequency)
+	{
+		std::string temp;
+		if (ReadFile(file, databuf, packet_size, &BytesReadFromFile, NULL) == FALSE)
+		{
+			packetarray.empty();
+			return packetarray;
+		}
+		else if (BytesReadFromFile < packet_size || BytesReadFromFile == 0)
+		{
+			SetFilePointer(file, 0, NULL, FILE_BEGIN);
+			count++;
+		}
+
+		OutputDebugString("[[[");
+		/*OutputDebugString(databuf);
+		//sprintf_s(c, "%d", count);
+		//OutputDebugString("]count:");
+		//OutputDebugString(c);
+		OutputDebugString("]]\n\n");*/
+		
+		//appendtofile(fileSave, databuf, BytesReadFromFile);
+		temp = databuf;
+		packetarray.push_back(temp);
+		memset(databuf, 0, sizeof(databuf));
+		
+		OutputDebugString(packetarray[0].c_str());
+	}
+	SetFilePointer(file, 0, NULL, FILE_BEGIN);
+
+	OutputDebugString("Sending finished.\n");
+	return packetarray;
 }
 
 void CreateInputText(HWND hwnd)
@@ -409,25 +492,28 @@ void CreateInputText(HWND hwnd)
 		(HMENU)-1,
 		hInst,
 		NULL);
-
 }
+
+
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 	WPARAM wParam, LPARAM lParam)
 {
 	HDC hdc;
 	HMENU hMenu = 0, hSubMenu;
-	SOCKET Accept;
+	static SOCKET Accept = 0;
 	static LPSOCKET_INFORMATION SocketInfo;
 	DWORD RecvBytes, SendBytes;
 	DWORD Flags;
 	TCHAR* textInput;
 	DWORD haha = 1000;
 	DWORD read = 0;
+	static std::vector<std::string> packets;
 	static int count = 0;
 	TCHAR writeBuffer[MAXBUF] = { '\0' };
-	static BOOL last = FALSE;
+	static BOOL finished = FALSE;
 	static BOOL sending = FALSE;
+	char datagram[MAXBUF] = { '\0' };
 
 
 	switch (Message)
@@ -490,8 +576,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				}
 				else
 				{
-					SocketInfo->DataBuf.buf = '\0';
-					SocketInfo->DataBuf.len = 1;
+					SocketInfo->DataBuf.buf = SocketInfo->Buffer;
+					SocketInfo->DataBuf.len = DATA_BUFSIZE;
 
 					Flags = 0;
 					if (WSARecv(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &RecvBytes,
@@ -507,10 +593,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 					else // No error so update the byte count
 					{
 						SocketInfo->BytesRECV = RecvBytes;
-						if (RecvBytes == 1 && SocketInfo->DataBuf.buf[0] == ACK)
-						{
-							PostMessage(hwnd, WM_SOCKET, wParam, FD_WRITE);
-						}
 					}
 				}
 
@@ -519,22 +601,64 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 
 			case FD_WRITE:
 
-				if (fileRead == INVALID_HANDLE_VALUE)
-				{
-					OutputDebugString("Can't send file.\n");
-					break;
+				SocketInfo = GetSocketInformation(wParam);
+				if (!sending) {
+					GetInitMessage(fileRead);
+					finished = false;
+					
 				}
-
-
-				if (count >= frequency) {
-					break;
+				else {
+					if (!finished) {
+						(packets.size() < 0) ? packets = GetPacketsFromFile(fileRead) : packets;
+						sprintf_s(SocketInfo->Buffer, packets.front().c_str());
+					}
 				}
-
-				if (sending) {
-					TransmitFile(SocketInfo->Socket, fileRead, packet_size, read, NULL, NULL, TF_REUSE_SOCKET);
 				
+				
+				if (SocketInfo->BytesRECV > SocketInfo->BytesSEND)
+				{
+					SocketInfo->DataBuf.buf = SocketInfo->Buffer + SocketInfo->BytesSEND;
+					SocketInfo->DataBuf.len = SocketInfo->BytesRECV - SocketInfo->BytesSEND;
+
+					if (WSASend(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &SendBytes, 0,
+						NULL, NULL) == SOCKET_ERROR)
+					{
+						if (WSAGetLastError() != WSAEWOULDBLOCK)
+						{
+							printf("WSASend() failed with error %d\n", WSAGetLastError());
+							FreeSocketInformation(wParam);
+							return 0;
+						}
+					}
+					else // No error so update the byte count
+					{
+						SocketInfo->BytesSEND += SendBytes;
+					}
+				}
+
+				if (SocketInfo->BytesSEND == SocketInfo->BytesRECV)
+				{
+					SocketInfo->BytesSEND = 0;
+					SocketInfo->BytesRECV = 0;
+					if (packets.size() != 0)
+					{
+						packets.pop_back();
+					}
+					else
+					{
+						sending = false;
+						finished = true;
+					}
 					
 
+					// If a RECV occurred during our SENDs then we need to post an FD_READ
+					// notification on the socket.
+
+					if (SocketInfo->RecvPosted == TRUE)
+					{
+						SocketInfo->RecvPosted = FALSE;
+						PostMessage(hwnd, WM_SOCKET, wParam, FD_READ);
+					}
 					/*SocketInfo->DataBuf.buf = writeBuffer;
 					SocketInfo->DataBuf.len = read;
 
@@ -587,7 +711,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 
 			case FD_CLOSE:
 
-				printf("Closing socket %d\n", wParam);
+				sprintf_s(pants, "%d", wParam);
+				OutputDebugString("Closing socket ");
+				OutputDebugString(pants);
+				OutputDebugString(".\n");
 				FreeSocketInformation(wParam);
 				WSACleanup();
 				break;
@@ -633,12 +760,15 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 		case ID_FREQUENCY_200:
 			frequency = 200;
 			break;
-		case ID_FILE_CONNECT:
+		case ID_FILE_SEND:
 			GetTextFromHost();
 			GetTextFromPort();
-			sending = TRUE;
-			PostMessage(hwnd, WM_SOCKET, wParam, FD_WRITE);
-			//OpenPortForSending(fileRead, packet_size, frequency, protocol);
+			SocketInfo = GetSocketInformation(Accept);
+			
+			GetInitMessage(fileRead);
+			strcpy_s(datagram, GetInitMessage(fileRead).c_str());
+			
+			send(SocketInfo->Socket, datagram, strlen(datagram), 0);
 			break;
 		case ID_FILE_SELECT:
 			fileRead = selectFile();
