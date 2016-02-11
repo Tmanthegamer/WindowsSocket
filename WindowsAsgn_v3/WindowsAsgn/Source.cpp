@@ -274,7 +274,7 @@ void SetServer(SOCKET* Accept) {
 
 	OutputDebugString("Connected via Setserver\n");
 }
-
+SOCKET test;
 void SetClient(SOCKET* Accept)
 {
 	DWORD Ret;
@@ -324,6 +324,8 @@ void SetClient(SOCKET* Accept)
 
 	connect(sock, (LPSOCKADDR)(&SockAddr), sizeof(SockAddr));
 	
+	CreateSocketInformation(sock);
+	test = sock;
 }
 
 HANDLE saveFile() 
@@ -790,15 +792,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 		case ID_FILE_SEND:
 			if (!Client)
 				break;
-			/*GetTextFromHost();
-			GetTextFromPort();
+			
+			memset(datagram, 0, sizeof(datagram));
+			sprintf_s(datagram, GetInitMessage(fileRead).c_str());
 			SocketInfo = GetSocketInformation(Accept);
-			
-			GetInitMessage(fileRead);
-			strcpy_s(datagram, GetInitMessage(fileRead).c_str());
-			
-			send(SocketInfo->Socket, datagram, strlen(datagram), 0);*/
-			
+			/*memcpy_s(SocketInfo->DataBuf.buf, sizeof(SocketInfo->DataBuf.buf), datagram, sizeof(datagram));
+			SocketInfo->DataBuf.len = strlen(datagram);*/
+			send(test, datagram, strlen(datagram), 0);
 
 			//WSARecv(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &RecvBytes,
 				//&Flags, NULL, NULL);
