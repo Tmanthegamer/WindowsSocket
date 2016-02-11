@@ -62,24 +62,21 @@ static int packets_lost	= 0;
 static int total_data	= 0;
 static int total_time	= 0;
 
-char ip_text[20] = "";
-short port = 0;
+char ip_text[20] = "127.0.0.1";
+short port = 5150;
 char protocol[4] = "TCP";
 int packet_size = 1000;
 int frequency = 1;
 
-BOOL Server = false;
-BOOL Client = false;
+BOOL Server = FALSE;
+BOOL Client = FALSE;
 
 TCHAR Name[] = TEXT("The Amazing Convert-o-matic");
 
 LPSOCKET_INFORMATION SocketInfoList;
+sockaddr sockAddrClient;
 
 #define WM_SOCKET 225
-
-void CreateSocketInformation(SOCKET s);
-LPSOCKET_INFORMATION GetSocketInformation(SOCKET s);
-void FreeSocketInformation(SOCKET s);
 
 BOOL CALLBACK AboutDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 {
@@ -225,15 +222,27 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hprevInstance,
 
 	return (int)Msg.wParam;
 }
-
-void SetServer() {
+/*if (Client)
+	{
+		OutputDebugString("Cannot be a client when it's already a server.\n");
+		return;
+	}
+		
+	if (port == 0 || ip_text == "")
+	{
+		OutputDebugString("Port is null, fix it.\n");
+		return;
+	}*/
+void SetServer(SOCKET* Accept) {
+	MSG msg;
 	DWORD Ret;
 	SOCKET Listen;
 	SOCKADDR_IN InternetAddr;
+	HWND Window;
 	WSADATA wsaData;
+
 	// Prepare echo server
-	WORD wVersionRequested = MAKEWORD(2, 2);
-	if ((Ret = WSAStartup(wVersionRequested, &wsaData)) != 0)
+	if ((Ret = WSAStartup(0x0202, &wsaData)) != 0)
 	{
 		printf("WSAStartup failed with error %d\n", Ret);
 		return;
@@ -245,12 +254,11 @@ void SetServer() {
 		return;
 	}
 
-	WSAAsyncSelect(Listen, hwnd, WM_SOCKET, FD_ACCEPT | FD_CLOSE | FD_READ | FD_WRITE);
-	memset((char *)&InternetAddr, 0, sizeof(struct sockaddr_in));
+	WSAAsyncSelect(Listen, hwnd, WM_SOCKET, FD_ACCEPT | FD_CLOSE);
+
 	InternetAddr.sin_family = AF_INET;
 	InternetAddr.sin_addr.s_addr = htonl(INADDR_ANY);
 	InternetAddr.sin_port = htons(PORT);
-
 
 	if (bind(Listen, (PSOCKADDR)&InternetAddr, sizeof(InternetAddr)) == SOCKET_ERROR)
 	{
@@ -264,15 +272,68 @@ void SetServer() {
 		return;
 	}
 
-	Server = TRUE;
-	Client = FALSE;
+	OutputDebugString("Connected via Setserver\n");
+}
+
+void SetClient(SOCKET* Accept)
+{
+	DWORD Ret;
+	WSADATA wsaData;
+
+	if (Server) 
+	{
+		OutputDebugString("Cannot be a Server when it's already a Client.\n");
+		return;
+	}
+	Client = TRUE;
+	Server = FALSE;
+
+	WORD wVersionRequested = MAKEWORD(2, 2);
+	if ((Ret = WSAStartup(0x0202, &wsaData)) != 0)
+	{
+		printf("WSAStartup failed with error %d\n", Ret);
+		return;
+	}
+
+	*Accept = socket(AF_INET, SOCK_STREAM, 0);
+	if (*Accept == INVALID_SOCKET)
+	{
+		MessageBox(hwnd, "Socket creation failed", "Critical Error", MB_ICONERROR);
+		SendMessage(hwnd, WM_DESTROY, NULL, NULL);
+		return;
+	}
 
 }
 
-void SetClient()
+void ClientConnect(SOCKET* Accept, SOCKADDR_IN* SockAddr)
 {
-	Client = TRUE;
-	Server = FALSE;
+	if (WSAAsyncSelect(*Accept, hwnd, WM_SOCKET, (FD_CLOSE | FD_READ)))
+	{
+		MessageBox(hwnd, "WSAAsyncSelect failed", "Critical Error", MB_ICONERROR);
+		SendMessage(hwnd, WM_DESTROY, NULL, NULL);
+		return;
+	}
+
+	struct hostent *host;
+	if ((host = gethostbyname(ip_text)) == NULL)
+	{
+		MessageBox(hwnd, "Unable to resolve host name", "Critical Error", MB_ICONERROR);
+		return;
+	}
+
+	if (port == 0)
+	{
+		MessageBox(hwnd, "Please enter a port.", "Critical Error", MB_ICONERROR);
+		return;
+	}
+
+	// Set up our socket address structure
+	SockAddr->sin_port = htons(port);
+	SockAddr->sin_family = AF_INET;
+	SockAddr->sin_addr.s_addr = *((unsigned long*)host->h_addr);
+	
+	connect(*Accept, (LPSOCKADDR)(&SockAddr), sizeof(SockAddr));
+	MessageBox(hwnd, "Client connected.", "Critical Error", MB_ICONERROR);
 }
 
 HANDLE saveFile() 
@@ -539,6 +600,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 	static BOOL connected = FALSE;
 	char datagram[MAXBUF] = { '\0' };
 	struct	sockaddr_in server, client;
+	int size;
 
 
 	switch (Message)
@@ -557,209 +619,127 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 		{
 			printf("Socket failed with error %d\n", WSAGETSELECTERROR(lParam));
 			FreeSocketInformation(wParam);
+			break;
 		}
-		else
+
+		switch (WSAGETSELECTEVENT(lParam))
 		{
-			switch (WSAGETSELECTEVENT(lParam))
+		case FD_CONNECT:
+			if (WSAGETSELECTERROR(lParam) == 0)
 			{
-			case FD_CONNECT:
-				if (WSAGETSELECTERROR(lParam) == 0)
-				{
-					OutputDebugString("FD_CONNECT Connected.\n");
-					memset(SocketInfo->DataBuf.buf, 0, sizeof(SocketInfo->DataBuf.buf));
-					std::string temp = GetInitMessage(fileRead);
-					memcpy_s(SocketInfo->DataBuf.buf, sizeof(SocketInfo->DataBuf.buf), temp.c_str(), sizeof(temp.c_str()));
+				OutputDebugString("FD_CONNECT Connected.\n");
+				memset(SocketInfo->DataBuf.buf, 0, sizeof(SocketInfo->DataBuf.buf));
+				std::string temp = GetInitMessage(fileRead);
+				memcpy_s(SocketInfo->DataBuf.buf, sizeof(SocketInfo->DataBuf.buf), temp.c_str(), sizeof(temp.c_str()));
 
-					send(Accept, SocketInfo->DataBuf.buf, SocketInfo->DataBuf.len, 0);
-				}
-				else
-				{
-					OutputDebugString("Could not connect properly.\n");
-					break;
-				}
-				break;
+				send(Accept, SocketInfo->DataBuf.buf, SocketInfo->DataBuf.len, 0);
+			}
+			else
+			{
+				OutputDebugString("Could not connect properly.\n");
+			}
+			break;
 
-			case FD_ACCEPT:
-				char pants[100];
-				if ((Accept = accept(wParam, NULL, NULL)) == INVALID_SOCKET)
-				{
-					char pants[100];
-					sprintf_s(pants, "%d", WSAGetLastError());
-					OutputDebugString("accept() failed with error");
-					OutputDebugString(pants);
-					OutputDebugString("\n");
-					break;
-				}
-
-				// Create a socket information structure to associate with the
-				// socket for processing I/O.
-
-				CreateSocketInformation(Accept);
-
-				sprintf_s(pants, "%d", Accept);
-				OutputDebugString("Socket number ");
-				OutputDebugString(pants);
-				OutputDebugString(" connected.\n");
-
-				WSAAsyncSelect(Accept, hwnd, WM_SOCKET, FD_READ | FD_WRITE | FD_CLOSE);
-				connected = TRUE;
-
-				break;
-
-			case FD_READ:
-
-				SocketInfo = GetSocketInformation(wParam);
-
-				// Read data only if the receive buffer is empty.
-
-				if (SocketInfo->BytesRECV != 0)
-				{
-					SocketInfo->RecvPosted = TRUE;
-					return 0;
-				}
-				else
-				{
-					SocketInfo->DataBuf.buf = SocketInfo->Buffer;
-					SocketInfo->DataBuf.len = DATA_BUFSIZE;
-
-					Flags = 0;
-					if (WSARecv(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &RecvBytes, &Flags,
-						&(SocketInfo->Overlapped), NULL) == SOCKET_ERROR)
-					{
-						if (WSAGetLastError() != WSA_IO_PENDING)
-						{
-							printf("WSARecv() failed with error %d\n", WSAGetLastError());
-							return FALSE;
-						}
-					}
-					else // No error so update the byte count
-					{
-						SocketInfo->BytesRECV = RecvBytes;
-					}
-				}
-
-				// DO NOT BREAK HERE SINCE WE GOT A SUCCESSFUL RECV. Go ahead
-				// and begin writing data to the client.
-
-			case FD_WRITE:
-
-				SocketInfo = GetSocketInformation(wParam);
-				if (!sending && connected) {
-					finished = false;
-				}
-				else {
-					if (!finished) {
-						(packets.size() < 0) ? packets = GetPacketsFromFile(fileRead) : packets;
-						sprintf_s(SocketInfo->Buffer, packets.front().c_str());
-					}
-				}
-				
-				
-				if (SocketInfo->BytesRECV > SocketInfo->BytesSEND)
-				{
-					SocketInfo->DataBuf.buf = SocketInfo->Buffer + SocketInfo->BytesSEND;
-					SocketInfo->DataBuf.len = SocketInfo->BytesRECV - SocketInfo->BytesSEND;
-
-					if (WSASend(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &SendBytes, 0,
-						&(SocketInfo->Overlapped), NULL) == SOCKET_ERROR)
-					{
-						if (WSAGetLastError() != WSAEWOULDBLOCK)
-						{
-							printf("WSASend() failed with error %d\n", WSAGetLastError());
-							FreeSocketInformation(wParam);
-							return 0;
-						}
-					}
-					else // No error so update the byte count
-					{
-						SocketInfo->BytesSEND += SendBytes;
-					}
-				}
-
-				if (SocketInfo->BytesSEND == SocketInfo->BytesRECV)
-				{
-					SocketInfo->BytesSEND = 0;
-					SocketInfo->BytesRECV = 0;
-					if (packets.size() != 0)
-					{
-						packets.pop_back();
-					}
-					else
-					{
-						sending = false;
-						finished = true;
-					}
-					
-
-					// If a RECV occurred during our SENDs then we need to post an FD_READ
-					// notification on the socket.
-
-					if (SocketInfo->RecvPosted == TRUE)
-					{
-						SocketInfo->RecvPosted = FALSE;
-						PostMessage(hwnd, WM_SOCKET, wParam, FD_READ);
-					}
-					/*SocketInfo->DataBuf.buf = writeBuffer;
-					SocketInfo->DataBuf.len = read;
-
-					if (read == 0)
-					{
-						SocketInfo->DataBuf.buf[0] = EOT;
-						SocketInfo->DataBuf.len = 1;
-					}
-
-					if (WSASend(SocketInfo->Socket,
-						&(SocketInfo->DataBuf),
-						1,
-						&SendBytes,
-						0,
-						NULL, NULL) == SOCKET_ERROR)
-					{
-						if (WSAGetLastError() != WSAEWOULDBLOCK)
-						{
-							OutputDebugString("WSASend() failed with error");
-							sprintf_s(pants, "%d", WSAGetLastError());
-							OutputDebugString(pants);
-							OutputDebugString("\n");
-							FreeSocketInformation(wParam);
-							return 0;
-						}
-					}
-					else // No error so update the byte count
-					{
-						SocketInfo->BytesSEND += SendBytes;
-						packets_sent++;
-					}
-
-
-					if (SocketInfo->BytesSEND == SocketInfo->BytesRECV)
-					{
-						SocketInfo->BytesSEND = 0;
-						SocketInfo->BytesRECV = 0;
-
-						// If a RECV occurred during our SENDs then we need to post an FD_READ
-						// notification on the socket.
-
-						if (SocketInfo->RecvPosted == TRUE)
-						{
-							SocketInfo->RecvPosted = FALSE;
-							PostMessage(hwnd, WM_SOCKET, wParam, FD_READ);
-						}
-					}*/
-				}
-				break;
-
-			case FD_CLOSE:
-
-				sprintf_s(pants, "%d", wParam);
-				OutputDebugString("Closing socket ");
-				OutputDebugString(pants);
-				OutputDebugString(".\n");
-				FreeSocketInformation(wParam);
-				WSACleanup();
-				connected = FALSE;
+		case FD_ACCEPT:
+			size = sizeof(sockaddr);
+			if ((Accept = accept(wParam, &sockAddrClient, &size)) == INVALID_SOCKET)
+			{
+				MessageBox(hwnd, "Can't accept client.", "Critical Error", MB_ICONERROR);
 				break;
 			}
+			WSAAsyncSelect(Accept, hwnd, WM_SOCKET, FD_READ | FD_WRITE | FD_CLOSE);
+			OutputDebugString("Accepted the client!\n");
+			// Create a socket information structure to associate with the
+			// socket for processing I/O.
+
+			CreateSocketInformation(Accept);
+			MessageBox(hwnd, "Accepted the client!\n", "Critical Error", MB_ICONERROR);
+			break;
+
+		case FD_READ:
+
+			SocketInfo = GetSocketInformation(wParam);
+
+			// Read data only if the receive buffer is empty.
+
+			if (SocketInfo->BytesRECV != 0)
+			{
+				SocketInfo->RecvPosted = TRUE;
+				return 0;
+			}
+			else
+			{
+				SocketInfo->DataBuf.buf = SocketInfo->Buffer;
+				SocketInfo->DataBuf.len = DATA_BUFSIZE;
+
+				Flags = 0;
+				if (WSARecv(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &RecvBytes,
+					&Flags, NULL, NULL) == SOCKET_ERROR)
+				{
+					if (WSAGetLastError() != WSAEWOULDBLOCK)
+					{
+						printf("WSARecv() failed with error %d\n", WSAGetLastError());
+						FreeSocketInformation(wParam);
+						return 0;
+					}
+				}
+				else // No error so update the byte count
+				{
+					SocketInfo->BytesRECV = RecvBytes;
+				}
+			}
+
+			// DO NOT BREAK HERE SINCE WE GOT A SUCCESSFUL RECV. Go ahead
+			// and begin writing data to the client.
+
+		case FD_WRITE:
+
+			SocketInfo = GetSocketInformation(wParam);
+
+			if (SocketInfo->BytesRECV > SocketInfo->BytesSEND)
+			{
+				SocketInfo->DataBuf.buf = SocketInfo->Buffer + SocketInfo->BytesSEND;
+				SocketInfo->DataBuf.len = SocketInfo->BytesRECV - SocketInfo->BytesSEND;
+
+				if (WSASend(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &SendBytes, 0,
+					NULL, NULL) == SOCKET_ERROR)
+				{
+					if (WSAGetLastError() != WSAEWOULDBLOCK)
+					{
+						printf("WSASend() failed with error %d\n", WSAGetLastError());
+						FreeSocketInformation(wParam);
+						return 0;
+					}
+				}
+				else // No error so update the byte count
+				{
+					SocketInfo->BytesSEND += SendBytes;
+				}
+			}
+
+			if (SocketInfo->BytesSEND == SocketInfo->BytesRECV)
+			{
+				SocketInfo->BytesSEND = 0;
+				SocketInfo->BytesRECV = 0;
+
+				// If a RECV occurred during our SENDs then we need to post an FD_READ
+				// notification on the socket.
+
+				if (SocketInfo->RecvPosted == TRUE)
+				{
+					SocketInfo->RecvPosted = FALSE;
+					PostMessage(hwnd, WM_SOCKET, wParam, FD_READ);
+				}
+			}
+
+			break;
+
+		case FD_CLOSE:
+
+			printf("Closing socket %d\n", wParam);
+			FreeSocketInformation(wParam);
+
+			break;
 		}
 		break;
 	case WM_COMMAND:
@@ -802,30 +782,25 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			frequency = 200;
 			break;
 		case ID_CLIENT:
-			SetClient();
+			GetTextFromHost();
+			GetTextFromPort();
+			OutputDebugString(ip_text);
+			SetClient(&Accept);
+			OutputDebugString("Client setting done.\n");
+			ClientConnect(&Accept, &client);
+			break;
+		case ID_SERVER:
+			GetTextFromHost();
+			GetTextFromPort();
+			char haha[100];
+			sprintf_s(haha, "port: %zu ip:%s", port, ip_text);
+
+			OutputDebugString(haha);
+			SetServer(&Accept);
 			break;
 		case ID_FILE_SEND:
 			if (!Client)
 				break;
-			Accept = socket(PF_INET, SOCK_STREAM, 0);
-			if (Accept == INVALID_SOCKET)
-			{
-				OutputDebugString("File send failed.\n");
-				break;
-			}
-
-			
-			if (connect(Accept, (struct sockaddr far *)	&client, sizeof(client)) == SOCKET_ERROR)
-			{
-				// error occurred on connect call. However expecting
-					// to get WSAEWOULDBLOCK error which means connection
-					// in progress.
-					if (WSAGetLastError() != WSAEWOULDBLOCK)
-					{
-						OutputDebugString("WSA woud block error. \n");
-						break;
-					}
-			}
 			/*GetTextFromHost();
 			GetTextFromPort();
 			SocketInfo = GetSocketInformation(Accept);
@@ -854,10 +829,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 	case WM_DESTROY:	// Terminate program
 		PostQuitMessage(0);
 		break;
-	default:
-		return DefWindowProc(hwnd, Message, wParam, lParam);
+
 	}
-	return 0;
+	return DefWindowProc(hwnd, Message, wParam, lParam);;
 }
 
 void GetTextFromHost() {
@@ -904,6 +878,7 @@ void updateStatistic(HWND hList, int avg, int sent, int lost, int data, int time
 	ListView_SetItemText(hList, 1, 4, t);
 }
 
+
 void CreateSocketInformation(SOCKET s)
 {
 	LPSOCKET_INFORMATION SI;
@@ -921,7 +896,7 @@ void CreateSocketInformation(SOCKET s)
 	SI->RecvPosted = FALSE;
 	SI->BytesSEND = 0;
 	SI->BytesRECV = 0;
-	ZeroMemory(&(SI->Overlapped), sizeof(WSAOVERLAPPED));
+
 	SI->Next = SocketInfoList;
 
 	SocketInfoList = SI;

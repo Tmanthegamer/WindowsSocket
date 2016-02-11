@@ -121,12 +121,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Async.cpp" />
-    <ClCompile Include="InternetUtilities.cpp" />
     <ClCompile Include="Source.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Async.h" />
-    <ClInclude Include="InternetUtilities.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="Source.h" />
   </ItemGroup>

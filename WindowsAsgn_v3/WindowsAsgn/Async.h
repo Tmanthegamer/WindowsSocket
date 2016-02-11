@@ -3,6 +3,8 @@
 #include <winsock2.h>
 #include <windows.h>
 #include <stdio.h>
+#include <string>
+#include <vector>
 #pragma comment(lib, "Ws2_32.lib")
 
 #define PORT 5150
@@ -18,9 +20,3 @@ typedef struct _SOCKET_INFORMATION {
 	DWORD BytesRECV;
 	_SOCKET_INFORMATION *Next;
 } SOCKET_INFORMATION, *LPSOCKET_INFORMATION;
-
-DWORD WINAPI ProcessIO(LPVOID lpParameter);
-
-BOOL OpenPortForSending(HANDLE file, int packet_size, int frequency, char* protocol);
-
-BOOL IncomingConnections(SOCKET ListenSocket);

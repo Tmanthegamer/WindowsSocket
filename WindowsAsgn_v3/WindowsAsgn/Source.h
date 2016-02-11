@@ -31,8 +31,6 @@ includes the InternetUtilities.h as well lists all the global variables and MACR
 that are used with this program.
 =====================================================================================*/
 
-#include "InternetUtilities.h"
-
 /*---------------------------------------------------------------------------------
 	MACROS:			Menu Macros
 
@@ -71,10 +69,7 @@ that are used with this program.
 	Utility Macros used to assist the Analyze Input function in determining which
 	function to call.
 ---------------------------------------------------------------------------------*/
-#define HOST_TO_IP		1
-#define IP_TO_HOST		2
-#define SERVICE_TO_PORT	3
-#define PORT_TO_SERVICE	4
+
 
 #define EOT 0x04
 #define ACK 0x06
@@ -84,6 +79,9 @@ void updateStatistic(HWND hList, int avg, int sent, int lost, int data, int time
 HWND CreateListView(HWND parent);
 void GetTextFromHost();
 void GetTextFromPort();
+void CreateSocketInformation(SOCKET s);
+LPSOCKET_INFORMATION GetSocketInformation(SOCKET s);
+void FreeSocketInformation(SOCKET s);
 
 /*---------------------------------------------------------------------------------
 --	FUNCTION:		Get Text From Input
