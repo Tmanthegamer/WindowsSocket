@@ -62,7 +62,7 @@ static int packets_lost	= 0;
 static int total_data	= 0;
 static int total_time	= 0;
 
-char ip_text[20] = "127.0.0.1";
+char ip_text[20] = { '\0' };
 short port = 5150;
 char protocol[4] = "TCP";
 int packet_size = 1000;
@@ -279,6 +279,7 @@ void SetClient(SOCKET* Accept)
 {
 	DWORD Ret;
 	WSADATA wsaData;
+	SOCKET sock;
 
 	if (Server) 
 	{
@@ -288,14 +289,13 @@ void SetClient(SOCKET* Accept)
 	Client = TRUE;
 	Server = FALSE;
 
-	WORD wVersionRequested = MAKEWORD(2, 2);
 	if ((Ret = WSAStartup(0x0202, &wsaData)) != 0)
 	{
 		printf("WSAStartup failed with error %d\n", Ret);
 		return;
 	}
 
-	*Accept = socket(AF_INET, SOCK_STREAM, 0);
+	sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (*Accept == INVALID_SOCKET)
 	{
 		MessageBox(hwnd, "Socket creation failed", "Critical Error", MB_ICONERROR);
@@ -303,37 +303,27 @@ void SetClient(SOCKET* Accept)
 		return;
 	}
 
-}
-
-void ClientConnect(SOCKET* Accept, SOCKADDR_IN* SockAddr)
-{
-	if (WSAAsyncSelect(*Accept, hwnd, WM_SOCKET, (FD_CLOSE | FD_READ)))
-	{
-		MessageBox(hwnd, "WSAAsyncSelect failed", "Critical Error", MB_ICONERROR);
-		SendMessage(hwnd, WM_DESTROY, NULL, NULL);
-		return;
-	}
+	WSAAsyncSelect(sock, hwnd, WM_SOCKET, FD_CLOSE | FD_READ);
 
 	struct hostent *host;
 	if ((host = gethostbyname(ip_text)) == NULL)
 	{
-		MessageBox(hwnd, "Unable to resolve host name", "Critical Error", MB_ICONERROR);
-		return;
-	}
-
-	if (port == 0)
-	{
-		MessageBox(hwnd, "Please enter a port.", "Critical Error", MB_ICONERROR);
+		MessageBox(hwnd,
+			"Unable to resolve host name",
+			"Critical Error",
+			MB_ICONERROR);
+		SendMessage(hwnd, WM_DESTROY, NULL, NULL);
 		return;
 	}
 
 	// Set up our socket address structure
-	SockAddr->sin_port = htons(port);
-	SockAddr->sin_family = AF_INET;
-	SockAddr->sin_addr.s_addr = *((unsigned long*)host->h_addr);
+	SOCKADDR_IN SockAddr;
+	SockAddr.sin_port = htons(port);
+	SockAddr.sin_family = AF_INET;
+	SockAddr.sin_addr.s_addr = *((unsigned long*)host->h_addr);
+
+	connect(sock, (LPSOCKADDR)(&SockAddr), sizeof(SockAddr));
 	
-	connect(*Accept, (LPSOCKADDR)(&SockAddr), sizeof(SockAddr));
-	MessageBox(hwnd, "Client connected.", "Critical Error", MB_ICONERROR);
 }
 
 HANDLE saveFile() 
@@ -552,7 +542,7 @@ void CreateInputText(HWND hwnd)
 		NULL);
 
 	/* Input Text field. */
-	inputHost = CreateWindow(TEXT("EDIT"), TEXT(""),
+	inputHost = CreateWindow(TEXT("EDIT"), TEXT("192.168.1.68"),
 		WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL,
 		10, 30, 250, 20,
 		hwnd,
@@ -561,7 +551,7 @@ void CreateInputText(HWND hwnd)
 		NULL);
 
 	/* Input Text field. */
-	inputPort = CreateWindow(TEXT("EDIT"), TEXT(""),
+	inputPort = CreateWindow(TEXT("EDIT"), TEXT("5150"),
 		WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL,
 		300, 30, 250, 20,
 		hwnd,
@@ -787,7 +777,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			OutputDebugString(ip_text);
 			SetClient(&Accept);
 			OutputDebugString("Client setting done.\n");
-			ClientConnect(&Accept, &client);
 			break;
 		case ID_SERVER:
 			GetTextFromHost();
