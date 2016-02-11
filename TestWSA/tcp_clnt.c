@@ -25,13 +25,15 @@
 --  prompted for date. The date string is then sent to the server and the
 --  response (echo) back from the server is displayed.
 ---------------------------------------------------------------------------------------*/
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
 #include <stdio.h>
 #include <winsock2.h>
 #include <errno.h>
+#pragma comment(lib, "Ws2_32.lib")
 //#include <string.h>
 //#include <memory.h>
 
-#define SERVER_TCP_PORT			7000	// Default port
+#define SERVER_TCP_PORT			5150	// Default port
 #define BUFSIZE					255		// Buffer length
 
 int main (int argc, char **argv)
@@ -100,7 +102,7 @@ int main (int argc, char **argv)
 	printf("\t\tIP Address: %s\n", inet_ntoa(server.sin_addr));
 	printf("Transmiting:\n");
 	memset((char *)sbuf, 0, sizeof(sbuf));
-	gets(sbuf); // get user's text
+	fgets(sbuf, sizeof(sbuf), stdin); // get user's text
 
 	// Transmit data through the socket
 	ns = send (sd, sbuf, BUFSIZE, 0);
