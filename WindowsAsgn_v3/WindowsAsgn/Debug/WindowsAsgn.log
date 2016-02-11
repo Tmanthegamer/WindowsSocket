@@ -1,28 +1,9 @@
-﻿Build started 2/10/2016 9:29:21 PM.
-     1>Project "C:\Users\Tyler\Desktop\WindowsSocket\WindowsAsgn_v3\WindowsAsgn\WindowsAsgn.vcxproj" on node 2 (Build target(s)).
-     1>ClCompile:
-         C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\CL.exe /c /Icomctl32.lib /ZI /nologo /W3 /WX- /sdl /Od /Oy- /D _MBCS /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"Debug\\" /Fd"Debug\vc140.pdb" /Gd /TP /analyze- /errorReport:prompt Source.cpp
-         Source.cpp
-     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(237): warning C4101: 'msg': unreferenced local variable
-     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(241): warning C4101: 'Window': unreferenced local variable
-     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(484): warning C4244: '=': conversion from 'LONGLONG' to 'long', possible loss of data
-     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(517): warning C4018: '<': signed/unsigned mismatch
-     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(500): warning C4101: 'c': unreferenced local variable
-     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(586): warning C4101: 'hdc': unreferenced local variable
-     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(592): warning C4101: 'textInput': unreferenced local variable
-     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(602): warning C4101: 'server': unreferenced local variable
-     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(587): warning C4101: 'hSubMenu': unreferenced local variable
-     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(848): warning C4477: 'sscanf_s' : format string '%zu' requires an argument of type 'unsigned int *', but variadic argument 1 has type 'short *'
-         c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(848): note: consider using '%hu' in the format string
-     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(856): warning C4101: 'l': unreferenced local variable
-     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(856): warning C4101: 'r': unreferenced local variable
-       Link:
-         C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\Tyler\Desktop\WindowsSocket\WindowsAsgn_v3\Debug\WindowsAsgn.exe" /INCREMENTAL /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /Debug /PDB:"C:\Users\Tyler\Desktop\WindowsSocket\WindowsAsgn_v3\Debug\WindowsAsgn.pdb" /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\Tyler\Desktop\WindowsSocket\WindowsAsgn_v3\Debug\WindowsAsgn.lib" /MACHINE:X86 Debug\Resource.res
-         Debug\Async.obj
-         Debug\Source.obj
-         WindowsAsgn.vcxproj -> C:\Users\Tyler\Desktop\WindowsSocket\WindowsAsgn_v3\Debug\WindowsAsgn.exe
-     1>Done Building Project "C:\Users\Tyler\Desktop\WindowsSocket\WindowsAsgn_v3\WindowsAsgn\WindowsAsgn.vcxproj" (Build target(s)).
+﻿Build started 2016-02-10 10:04:25 PM.
+     1>Project "C:\Users\Tyler\Google Drive\Notes\COMP 4985 - Windows\Assignments\WindowsSocket\WindowsAsgn_v3\WindowsAsgn\WindowsAsgn.vcxproj" on node 2 (Build target(s)).
+     1>Link:
+         WindowsAsgn.vcxproj -> C:\Users\Tyler\Google Drive\Notes\COMP 4985 - Windows\Assignments\WindowsSocket\WindowsAsgn_v3\Debug\WindowsAsgn.exe
+     1>Done Building Project "C:\Users\Tyler\Google Drive\Notes\COMP 4985 - Windows\Assignments\WindowsSocket\WindowsAsgn_v3\WindowsAsgn\WindowsAsgn.vcxproj" (Build target(s)).
 
 Build succeeded.
 
-Time Elapsed 00:00:02.27
+Time Elapsed 00:00:00.16
