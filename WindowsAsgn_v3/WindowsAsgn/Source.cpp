@@ -298,9 +298,12 @@ void SetClient(SOCKET* Accept)
 		SendMessage(hwnd, WM_DESTROY, NULL, NULL);
 		return;
 	}
-
+	test = sock;
 	WSAAsyncSelect(sock, hwnd, WM_SOCKET, FD_CLOSE | FD_READ);
+}
 
+void ClientConnect()
+{
 	struct hostent *host;
 	if ((host = gethostbyname(ip_text)) == NULL)
 	{
@@ -318,10 +321,8 @@ void SetClient(SOCKET* Accept)
 	SockAddr.sin_family = AF_INET;
 	SockAddr.sin_addr.s_addr = *((unsigned long*)host->h_addr);
 
-	connect(sock, (LPSOCKADDR)(&SockAddr), sizeof(SockAddr));
-	
-	CreateSocketInformation(sock);
-	test = sock;
+	connect(test, (LPSOCKADDR)(&SockAddr), sizeof(SockAddr));
+	CreateSocketInformation(test);
 }
 
 HANDLE saveFile() 
@@ -475,26 +476,58 @@ std::string GetInitMessage(HANDLE file)
 	totalPackets *= frequency;
 
 	sprintf_s(initmsg, "size: %d num: %d", packet_size, totalPackets);
+	OutputDebugString(initmsg);
 	temp = initmsg;
 	return temp;
 }
 
-std::vector<std::string> GetPacketsFromFile(HANDLE file)
+char** holder;
+
+std::vector<char*> GetPacketsFromFile(HANDLE file)
 {
 	char databuf[MAXBUF] = { '\0' };
 	char c[10];
 	
-	std::vector<std::string> packetarray;
-
+	std::vector<char*> packetarray;
+	long FileSize = 0;
+	int totalPackets = 0;
+	LARGE_INTEGER size;
+	std::string temp;
 	DWORD BytesReadFromFile = 0;
 	DWORD SendBytes = 0;
 	DWORD ReadBytes = 0;
 	int count = 0;
 
-	while (count < frequency)
+	if (!GetFileSizeEx(file, &size))
 	{
-		std::string temp;
-		if (ReadFile(file, databuf, packet_size, &BytesReadFromFile, NULL) == FALSE)
+		//CloseHandle(file);
+		return packetarray; // error condition, could call GetLastError to find out more
+	}
+
+	FileSize = size.QuadPart;
+	totalPackets = FileSize / packet_size;
+	if (FileSize % packet_size > 0)
+	{
+		totalPackets += 1;
+	}
+	totalPackets *= frequency;
+	
+	holder = (char**)malloc(totalPackets);
+	while (count < totalPackets)
+	{
+		holder[count] = (char*)malloc(packet_size+1);
+		if (holder[count] == NULL) {
+			OutputDebugString("{{{{shit}}}}");
+		}
+			
+		memset(holder[count], 0, packet_size);
+		count++;
+		
+	}
+	count = 0;
+	while (count < totalPackets)
+	{
+		if (ReadFile(file, holder[count], packet_size-1, &BytesReadFromFile, NULL) == FALSE)
 		{
 			packetarray.empty();
 			return packetarray;
@@ -502,25 +535,22 @@ std::vector<std::string> GetPacketsFromFile(HANDLE file)
 		else if (BytesReadFromFile < packet_size || BytesReadFromFile == 0)
 		{
 			SetFilePointer(file, 0, NULL, FILE_BEGIN);
-			count++;
+			
 		}
+		holder[count][packet_size-1] = '\0';
 
-		OutputDebugString("[[[");
-		/*OutputDebugString(databuf);
-		//sprintf_s(c, "%d", count);
-		//OutputDebugString("]count:");
-		//OutputDebugString(c);
+		/*OutputDebugString("[[");
+		OutputDebugString(holder[count]);
 		OutputDebugString("]]\n\n");*/
-		
 		//appendtofile(fileSave, databuf, BytesReadFromFile);
-		temp = databuf;
-		packetarray.push_back(temp);
-		memset(databuf, 0, sizeof(databuf));
-		
-		OutputDebugString(packetarray[0].c_str());
+		packetarray.push_back(holder[count]);
+		count++;
 	}
 	SetFilePointer(file, 0, NULL, FILE_BEGIN);
-
+	for (auto it : packetarray)
+	{
+		OutputDebugString(it);
+	}
 	OutputDebugString("Sending finished.\n");
 	return packetarray;
 }
@@ -585,7 +615,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 	char datagram[MAXBUF] = { '\0' };
 	struct	sockaddr_in server, client;
 	int size;
-	static std::vector<std::string> packets_to_send;
+	static std::vector<char*> packets_to_send;
 	static char current_packet[MAXBUF];
 
 	static int inc_packet_num = 0;
@@ -621,15 +651,20 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			}
 			WSAAsyncSelect(Accept, hwnd, WM_SOCKET, FD_READ | FD_WRITE | FD_CLOSE);
 			OutputDebugString("Accepted the client!\n");
+			
 			// Create a socket information structure to associate with the
 			// socket for processing I/O.
-
 			CreateSocketInformation(Accept);
 			break;
 
 		case FD_READ:
 			OutputDebugString("FD_READ");
 			SocketInfo = GetSocketInformation(wParam);
+
+			if (SocketInfo == NULL)
+			{
+				break;
+			}
 
 			// Read data only if the receive buffer is empty.
 
@@ -682,7 +717,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 					OutputDebugString("]]]\n");
 					total_data = packet_size;
 					
-					appendtofile(fileSave, SocketInfo->DataBuf.buf, strlen(SocketInfo->DataBuf.buf)+1);
+					appendtofile(fileSave, SocketInfo->DataBuf.buf, strlen(SocketInfo->DataBuf.buf));
 					
 				}
 				else if (sending_file && SocketInfo->BytesRECV == packet_size)
@@ -692,7 +727,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 					{
 						sending_file = TRUE;
 						packets_to_send = GetPacketsFromFile(file_to_send);
-						sprintf_s(current_packet, packets_to_send.back().c_str());
+						sprintf_s(current_packet, packets_to_send.back());
 						packets_to_send.pop_back();
 					}
 					else if (SocketInfo->DataBuf.buf[0] == ACK)
@@ -702,7 +737,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 						{
 							
 							
-							sprintf_s(current_packet, packets_to_send.back().c_str());
+							sprintf_s(current_packet, packets_to_send.back());
 							packets_to_send.pop_back();
 						}
 						else
@@ -714,10 +749,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 					}
 					else if (SocketInfo->DataBuf.buf[0] == EOT)
 					{
-						sending_file = false;
+						sending_file = FALSE;
 						memset(SocketInfo->DataBuf.buf, 0, sizeof(SocketInfo->DataBuf.buf));
 						memset(current_packet, '\0', sizeof(current_packet));
 						memset(SocketInfo->Buffer, 0, sizeof(SocketInfo->Buffer));
+						PostMessage(hwnd, WM_SOCKET, wParam, FD_CLOSE);
 					}
 				}
 			}
@@ -732,7 +768,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				MessageBox(hwnd, "sending_file and incoming file is true, ERROR", "Critical Error", MB_ICONERROR);
 				break;
 			}
+
 			SocketInfo = GetSocketInformation(wParam);
+			if (SocketInfo == NULL)
+			{
+				break;
+			}
+
+
 			if (incoming_file)
 			{
 				if (first_ack)
@@ -750,7 +793,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				incoming_final_message = FALSE;
 				memset(SocketInfo->Buffer, EOT, sizeof(SocketInfo->Buffer));
 			}
-
 			else if (sending_file)
 			{
 				memset(SocketInfo->Buffer, 0, sizeof(SocketInfo->Buffer));
@@ -806,6 +848,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 					PostMessage(hwnd, WM_SOCKET, wParam, FD_READ);
 				}
 			}
+			OutputDebugString("Wrote the message:[[[");
+			OutputDebugString(SocketInfo->DataBuf.buf);
+			OutputDebugString("]]]\n");
 
 			break;
 
@@ -817,6 +862,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			break;
 		}
 		break;
+
 	case WM_COMMAND:
 		switch (LOWORD(wParam))
 		{
@@ -861,6 +907,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			GetTextFromPort();
 			OutputDebugString(ip_text);
 			SetClient(&Accept);
+			ClientConnect();
 			OutputDebugString("Client setting done.\n");
 			break;
 		case ID_SERVER:
@@ -875,7 +922,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 		case ID_FILE_SEND:
 			if (!Client)
 				break;
-			
 			memset(datagram, 0, sizeof(datagram));
 			sprintf_s(datagram, GetInitMessage(file_to_send).c_str());
 			SocketInfo = GetSocketInformation(test);
@@ -891,6 +937,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			fileSave = saveFile();
 			break;
 		case ID_FILE_EXIT:
+			GetPacketsFromFile(file_to_send);
 			break;
 		}
 		break;
