@@ -466,8 +466,8 @@ std::string GetInitMessage(HANDLE file)
 	}
 
 	FileSize = size.QuadPart;
-	totalPackets = FileSize / packet_size;
-	if (FileSize % packet_size > 0)
+	totalPackets = FileSize / (packet_size - 1);
+	if (FileSize % (packet_size -1) > 0)
 	{
 		totalPackets += 1;
 	}
@@ -503,8 +503,8 @@ std::vector<char*> GetPacketsFromFile(HANDLE file)
 	}
 
 	FileSize = size.QuadPart;
-	totalPackets = FileSize / packet_size;
-	if (FileSize % packet_size > 0)
+	totalPackets = FileSize / (packet_size - 1);
+	if (FileSize % (packet_size - 1) > 0)
 	{
 		totalPackets += 1;
 	}
@@ -530,7 +530,7 @@ std::vector<char*> GetPacketsFromFile(HANDLE file)
 			packetarray.empty();
 			return packetarray;
 		}
-		else if (BytesReadFromFile < packet_size || BytesReadFromFile == 0)
+		else if (BytesReadFromFile < (packet_size-1) || BytesReadFromFile == 0)
 		{
 			SetFilePointer(file, 0, NULL, FILE_BEGIN);
 			
@@ -545,10 +545,6 @@ std::vector<char*> GetPacketsFromFile(HANDLE file)
 		count++;
 	}
 	SetFilePointer(file, 0, NULL, FILE_BEGIN);
-	for (auto it : packetarray)
-	{
-		OutputDebugString(it);
-	}
 	OutputDebugString("Sending finished.\n");
 	return packetarray;
 }
@@ -706,8 +702,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 						memset(SocketInfo->Buffer, 0, sizeof(SocketInfo->Buffer));
 						if (packets_to_send.size() > 0)
 						{
-							
-							
 							sprintf_s(current_packet, packets_to_send.back());
 							packets_to_send.pop_back();
 						}
@@ -871,7 +865,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			fileSave = saveFile();
 			break;
 		case ID_FILE_EXIT:
-			GetPacketsFromFile(file_to_send);
+			packets_to_send = GetPacketsFromFile(file_to_send);
 			break;
 		}
 		break;
