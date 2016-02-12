@@ -70,6 +70,10 @@ int frequency = 1;
 
 BOOL Server = FALSE;
 BOOL Client = FALSE;
+BOOL sending_file = FALSE;
+BOOL incoming_file = FALSE;
+BOOL incoming_final_message = FALSE;
+BOOL first_ack = FALSE;
 
 TCHAR Name[] = TEXT("The Amazing Convert-o-matic");
 
@@ -586,12 +590,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 	static int count = 0;
 	TCHAR writeBuffer[MAXBUF] = { '\0' };
 	static BOOL finished = FALSE;
-	static BOOL sending = FALSE;
 	static BOOL connected = FALSE;
 	char datagram[MAXBUF] = { '\0' };
 	struct	sockaddr_in server, client;
 	int size;
 
+	static int inc_packet_num = 0;
+	static int inc_packet_size = 0;
 
 	switch (Message)
 	{
@@ -677,19 +682,59 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				{
 					SocketInfo->BytesRECV = RecvBytes;
 				}
+				
+				if (!incoming_file && sscanf_s(SocketInfo->DataBuf.buf, "size: %d num: %d", &inc_packet_size, &inc_packet_num) == 2)
+				{
+					incoming_file = TRUE;
+					first_ack = TRUE;
+					//PostMessage(hwnd, WM_SOCKET, wParam, FD_READ);
+				}
+				else if (incoming_file && SocketInfo->DataBuf.buf[0] == EOT)
+				{
+					incoming_file = FALSE;
+					incoming_final_message = TRUE;
+				}
 			}
 
 			// DO NOT BREAK HERE SINCE WE GOT A SUCCESSFUL RECV. Go ahead
 			// and begin writing data to the client.
 
 		case FD_WRITE:
-
+			if (sending_file && incoming_file)
+			{
+				MessageBox(hwnd, "sending_file and incoming file is true, ERROR", "Critical Error", MB_ICONERROR);
+				break;
+			}
 			SocketInfo = GetSocketInformation(wParam);
-
+			if (incoming_file)
+			{
+				if (first_ack)
+				{
+					memset(SocketInfo->Buffer, SOT, sizeof(SocketInfo->Buffer));
+				}
+				else 
+				{
+					memset(SocketInfo->Buffer, ACK, sizeof(SocketInfo->Buffer));
+				}
+					
+			}
+			else if (incoming_final_message) {
+				incoming_final_message = FALSE;
+				memset(SocketInfo->Buffer, EOT, sizeof(SocketInfo->Buffer));
+			}
+				
 			if (SocketInfo->BytesRECV > SocketInfo->BytesSEND)
 			{
 				SocketInfo->DataBuf.buf = SocketInfo->Buffer + SocketInfo->BytesSEND;
-				SocketInfo->DataBuf.len = SocketInfo->BytesRECV - SocketInfo->BytesSEND;
+				if (incoming_file && first_ack)
+				{
+					SocketInfo->DataBuf.len = inc_packet_size;
+				}
+				else
+				{
+					SocketInfo->DataBuf.len = SocketInfo->BytesRECV - SocketInfo->BytesSEND;
+				}
+				
 
 				if (WSASend(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &SendBytes, 0,
 					NULL, NULL) == SOCKET_ERROR)
@@ -707,10 +752,16 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				}
 			}
 
-			if (SocketInfo->BytesSEND == SocketInfo->BytesRECV)
+			if (SocketInfo->BytesSEND == SocketInfo->BytesRECV || (SocketInfo->BytesSEND == inc_packet_size && incoming_file))
 			{
 				SocketInfo->BytesSEND = 0;
 				SocketInfo->BytesRECV = 0;
+
+				if (first_ack)
+				{
+					first_ack = FALSE;
+				}
+					
 
 				// If a RECV occurred during our SENDs then we need to post an FD_READ
 				// notification on the socket.
