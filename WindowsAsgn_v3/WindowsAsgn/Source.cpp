@@ -49,7 +49,7 @@ the Windows Procedure which will handle all windows events.
 #pragma comment(lib, "Mswsock.lib")
 
 HWND hwnd, inputHost, inputPort, combobox, convertBtn, clearBtn, inputGroupBox, listGroupBox, listview;
-HANDLE fileRead = INVALID_HANDLE_VALUE, fileSave = INVALID_HANDLE_VALUE;
+HANDLE file_to_send = INVALID_HANDLE_VALUE, fileSave = INVALID_HANDLE_VALUE;
 HMENU input_id = (HMENU)50;
 HMENU ID = (HMENU)100;
 HMENU combo_id = (HMENU)150;
@@ -79,6 +79,7 @@ TCHAR Name[] = TEXT("The Amazing Convert-o-matic");
 
 LPSOCKET_INFORMATION SocketInfoList;
 sockaddr sockAddrClient;
+SOCKET test;
 
 #define WM_SOCKET 225
 
@@ -226,17 +227,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hprevInstance,
 
 	return (int)Msg.wParam;
 }
-/*if (Client)
-	{
-		OutputDebugString("Cannot be a client when it's already a server.\n");
-		return;
-	}
-		
-	if (port == 0 || ip_text == "")
-	{
-		OutputDebugString("Port is null, fix it.\n");
-		return;
-	}*/
+
 void SetServer(SOCKET* Accept) {
 	MSG msg;
 	DWORD Ret;
@@ -278,6 +269,7 @@ void SetServer(SOCKET* Accept) {
 
 	OutputDebugString("Connected via Setserver\n");
 }
+
 
 void SetClient(SOCKET* Accept)
 {
@@ -328,6 +320,8 @@ void SetClient(SOCKET* Accept)
 
 	connect(sock, (LPSOCKADDR)(&SockAddr), sizeof(SockAddr));
 	
+	CreateSocketInformation(sock);
+	test = sock;
 }
 
 HANDLE saveFile() 
@@ -360,9 +354,6 @@ HANDLE saveFile()
 		/*if (WriteFile(hFile, buffer, strlen(buffer), &bytesWritten, NULL))
 		{
 		}*/
-
-		//free resources
-		//CloseHandle(hFile);
 	}
 
 	return hFile;
@@ -447,10 +438,10 @@ HMENU CreateMenuOptions(void)
 
 BOOL appendtofile(HANDLE file, char* segment, int size)
 {
-	char databuf[MAXBUF] = { '\0' };
+	//char databuf[MAXBUF] = { '\0' };
 	DWORD BytesWroteToFile = 0;
 	
-	if (WriteFile(file, segment, size, &BytesWroteToFile, NULL) == FALSE)
+	if (WriteFile(file, segment, size+1, &BytesWroteToFile, NULL) == FALSE)
 	{
 		return FALSE;
 	}
@@ -594,6 +585,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 	char datagram[MAXBUF] = { '\0' };
 	struct	sockaddr_in server, client;
 	int size;
+	static std::vector<std::string> packets_to_send;
+	static char current_packet[MAXBUF];
 
 	static int inc_packet_num = 0;
 	static int inc_packet_size = 0;
@@ -619,22 +612,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 
 		switch (WSAGETSELECTEVENT(lParam))
 		{
-		case FD_CONNECT:
-			if (WSAGETSELECTERROR(lParam) == 0)
-			{
-				OutputDebugString("FD_CONNECT Connected.\n");
-				memset(SocketInfo->DataBuf.buf, 0, sizeof(SocketInfo->DataBuf.buf));
-				std::string temp = GetInitMessage(fileRead);
-				memcpy_s(SocketInfo->DataBuf.buf, sizeof(SocketInfo->DataBuf.buf), temp.c_str(), sizeof(temp.c_str()));
-
-				send(Accept, SocketInfo->DataBuf.buf, SocketInfo->DataBuf.len, 0);
-			}
-			else
-			{
-				OutputDebugString("Could not connect properly.\n");
-			}
-			break;
-
 		case FD_ACCEPT:
 			size = sizeof(sockaddr);
 			if ((Accept = accept(wParam, &sockAddrClient, &size)) == INVALID_SOCKET)
@@ -648,11 +625,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			// socket for processing I/O.
 
 			CreateSocketInformation(Accept);
-			MessageBox(hwnd, "Accepted the client!\n", "Critical Error", MB_ICONERROR);
 			break;
 
 		case FD_READ:
-
+			OutputDebugString("FD_READ");
 			SocketInfo = GetSocketInformation(wParam);
 
 			// Read data only if the receive buffer is empty.
@@ -682,7 +658,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				{
 					SocketInfo->BytesRECV = RecvBytes;
 				}
-				
+				total_data += RecvBytes;
 				if (!incoming_file && sscanf_s(SocketInfo->DataBuf.buf, "size: %d num: %d", &inc_packet_size, &inc_packet_num) == 2)
 				{
 					incoming_file = TRUE;
@@ -693,6 +669,56 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				{
 					incoming_file = FALSE;
 					incoming_final_message = TRUE;
+					appendtofile(fileSave, "\n\0", 2);
+				}
+				else if (incoming_file)
+				{
+					
+					OutputDebugString("[[[");
+					OutputDebugString("strlen:");
+					sprintf_s(datagram, "%d }{", strlen(SocketInfo->DataBuf.buf));
+					OutputDebugString(datagram);
+					OutputDebugString(SocketInfo->DataBuf.buf);
+					OutputDebugString("]]]\n");
+					total_data = packet_size;
+					
+					appendtofile(fileSave, SocketInfo->DataBuf.buf, strlen(SocketInfo->DataBuf.buf)+1);
+					
+				}
+				else if (sending_file && SocketInfo->BytesRECV == packet_size)
+				{
+					
+					if (SocketInfo->DataBuf.buf[0] == SOT)
+					{
+						sending_file = TRUE;
+						packets_to_send = GetPacketsFromFile(file_to_send);
+						sprintf_s(current_packet, packets_to_send.back().c_str());
+						packets_to_send.pop_back();
+					}
+					else if (SocketInfo->DataBuf.buf[0] == ACK)
+					{
+						memset(SocketInfo->Buffer, 0, sizeof(SocketInfo->Buffer));
+						if (packets_to_send.size() > 0)
+						{
+							
+							
+							sprintf_s(current_packet, packets_to_send.back().c_str());
+							packets_to_send.pop_back();
+						}
+						else
+						{
+							memset(current_packet, 0, sizeof(current_packet));
+							memset(current_packet, EOT, packet_size);
+						}
+						sprintf_s(SocketInfo->Buffer, current_packet);
+					}
+					else if (SocketInfo->DataBuf.buf[0] == EOT)
+					{
+						sending_file = false;
+						memset(SocketInfo->DataBuf.buf, 0, sizeof(SocketInfo->DataBuf.buf));
+						memset(current_packet, '\0', sizeof(current_packet));
+						memset(SocketInfo->Buffer, 0, sizeof(SocketInfo->Buffer));
+					}
 				}
 			}
 
@@ -700,6 +726,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			// and begin writing data to the client.
 
 		case FD_WRITE:
+			OutputDebugString("FD_WRITE");
 			if (sending_file && incoming_file)
 			{
 				MessageBox(hwnd, "sending_file and incoming file is true, ERROR", "Critical Error", MB_ICONERROR);
@@ -718,11 +745,18 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				}
 					
 			}
-			else if (incoming_final_message) {
+			else if (incoming_final_message) 
+			{
 				incoming_final_message = FALSE;
 				memset(SocketInfo->Buffer, EOT, sizeof(SocketInfo->Buffer));
 			}
-				
+
+			else if (sending_file)
+			{
+				memset(SocketInfo->Buffer, 0, sizeof(SocketInfo->Buffer));
+				sprintf_s(SocketInfo->Buffer, current_packet);
+			}
+
 			if (SocketInfo->BytesRECV > SocketInfo->BytesSEND)
 			{
 				SocketInfo->DataBuf.buf = SocketInfo->Buffer + SocketInfo->BytesSEND;
@@ -776,7 +810,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			break;
 
 		case FD_CLOSE:
-
+			OutputDebugString("FD_CLOSE");
 			printf("Closing socket %d\n", wParam);
 			FreeSocketInformation(wParam);
 
@@ -841,22 +875,17 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 		case ID_FILE_SEND:
 			if (!Client)
 				break;
-			/*GetTextFromHost();
-			GetTextFromPort();
-			SocketInfo = GetSocketInformation(Accept);
 			
-			GetInitMessage(fileRead);
-			strcpy_s(datagram, GetInitMessage(fileRead).c_str());
-			
-			send(SocketInfo->Socket, datagram, strlen(datagram), 0);*/
-			
+			memset(datagram, 0, sizeof(datagram));
+			sprintf_s(datagram, GetInitMessage(file_to_send).c_str());
+			SocketInfo = GetSocketInformation(test);
 
-			//WSARecv(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &RecvBytes,
-				//&Flags, NULL, NULL);
-			//recv(SocketInfo->Socket, datagram, packet_size, 0);
+			send(test, datagram, strlen(datagram)+1, 0);
+			
 			break;
+
 		case ID_FILE_SELECT:
-			fileRead = selectFile();
+			file_to_send = selectFile();
 			break;
 		case ID_FILE_SAVE:
 			fileSave = saveFile();
@@ -867,6 +896,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 		break;
 
 	case WM_DESTROY:	// Terminate program
+		CloseHandle(file_to_send);
+		CloseHandle(fileSave);
 		PostQuitMessage(0);
 		break;
 
