@@ -1,23 +1,24 @@
-﻿Build started 2/11/2016 4:39:17 PM.
+﻿Build started 2/11/2016 7:48:03 PM.
      1>Project "C:\Users\Tyler\Desktop\WindowsSocket\WindowsAsgn_v3\WindowsAsgn\WindowsAsgn.vcxproj" on node 2 (Build target(s)).
      1>ClCompile:
          C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\CL.exe /c /Icomctl32.lib /ZI /nologo /W3 /WX- /sdl /Od /Oy- /D _MBCS /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"Debug\\" /Fd"Debug\vc140.pdb" /Gd /TP /analyze- /errorReport:prompt Source.cpp
-     1>cl : Command line warning D9028: minimal rebuild failure, reverting to normal build
          Source.cpp
      1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(228): warning C4101: 'msg': unreferenced local variable
      1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(232): warning C4101: 'Window': unreferenced local variable
-     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(467): warning C4244: '=': conversion from 'LONGLONG' to 'long', possible loss of data
-     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(500): warning C4018: '<': signed/unsigned mismatch
-     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(483): warning C4101: 'c': unreferenced local variable
-     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(569): warning C4101: 'hdc': unreferenced local variable
-     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(575): warning C4101: 'textInput': unreferenced local variable
-     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(585): warning C4101: 'server': unreferenced local variable
-     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(570): warning C4101: 'hSubMenu': unreferenced local variable
-     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(585): warning C4101: 'client': unreferenced local variable
-     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(847): warning C4477: 'sscanf_s' : format string '%zu' requires an argument of type 'unsigned int *', but variadic argument 1 has type 'short *'
-         c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(847): note: consider using '%hu' in the format string
-     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(855): warning C4101: 'l': unreferenced local variable
-     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(855): warning C4101: 'r': unreferenced local variable
+     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(468): warning C4244: '=': conversion from 'LONGLONG' to 'long', possible loss of data
+     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(505): warning C4244: '=': conversion from 'LONGLONG' to 'long', possible loss of data
+     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(531): warning C4018: '<': signed/unsigned mismatch
+     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(546): warning C4129: '/': unrecognized character escape sequence
+     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(487): warning C4101: 'c': unreferenced local variable
+     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(598): warning C4101: 'hdc': unreferenced local variable
+     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(604): warning C4101: 'textInput': unreferenced local variable
+     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(614): warning C4101: 'server': unreferenced local variable
+     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(599): warning C4101: 'hSubMenu': unreferenced local variable
+     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(614): warning C4101: 'client': unreferenced local variable
+     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(898): warning C4477: 'sscanf_s' : format string '%zu' requires an argument of type 'unsigned int *', but variadic argument 1 has type 'short *'
+         c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(898): note: consider using '%hu' in the format string
+     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(906): warning C4101: 'l': unreferenced local variable
+     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(906): warning C4101: 'r': unreferenced local variable
        Link:
          C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\Tyler\Desktop\WindowsSocket\WindowsAsgn_v3\Debug\WindowsAsgn.exe" /INCREMENTAL /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /Debug /PDB:"C:\Users\Tyler\Desktop\WindowsSocket\WindowsAsgn_v3\Debug\WindowsAsgn.pdb" /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\Tyler\Desktop\WindowsSocket\WindowsAsgn_v3\Debug\WindowsAsgn.lib" /MACHINE:X86 Debug\Resource.res
          Debug\Async.obj
@@ -27,4 +28,4 @@
 
 Build succeeded.
 
-Time Elapsed 00:00:03.14
+Time Elapsed 00:00:06.09
