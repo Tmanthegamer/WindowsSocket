@@ -567,7 +567,7 @@ void CreateInputText(HWND hwnd)
 		NULL);
 
 	/* Input Text field. */
-	inputHost = CreateWindow(TEXT("EDIT"), TEXT("192.168.1.68"),
+	inputHost = CreateWindow(TEXT("EDIT"), TEXT("142.232.155.30"),
 		WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL,
 		10, 30, 250, 20,
 		hwnd,
@@ -658,7 +658,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			break;
 
 		case FD_READ:
-			OutputDebugString("FD_READ");
+			OutputDebugString("FD_READ\n");
 			SocketInfo = GetSocketInformation(wParam);
 
 			if (SocketInfo == NULL)
@@ -694,6 +694,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 					SocketInfo->BytesRECV = RecvBytes;
 				}
 				total_data += RecvBytes;
+				
 				if (!incoming_file && sscanf_s(SocketInfo->DataBuf.buf, "size: %d num: %d", &inc_packet_size, &inc_packet_num) == 2)
 				{
 					incoming_file = TRUE;
@@ -720,25 +721,28 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 					appendtofile(fileSave, SocketInfo->DataBuf.buf, strlen(SocketInfo->DataBuf.buf));
 					
 				}
-				else if (sending_file && SocketInfo->BytesRECV == packet_size)
+				else if (SocketInfo->DataBuf.buf[0] == SOT)
+				{
+					sending_file = TRUE;
+				}
+				
+				if (sending_file && SocketInfo->BytesRECV == packet_size)
 				{
 					
 					if (SocketInfo->DataBuf.buf[0] == SOT)
 					{
-						sending_file = TRUE;
+						memset(current_packet, 0, sizeof(current_packet));
 						packets_to_send = GetPacketsFromFile(file_to_send);
-						sprintf_s(current_packet, packets_to_send.back());
-						packets_to_send.pop_back();
+						sprintf_s(current_packet, packets_to_send.front());
+						packets_to_send.erase(packets_to_send.begin());
 					}
 					else if (SocketInfo->DataBuf.buf[0] == ACK)
 					{
 						memset(SocketInfo->Buffer, 0, sizeof(SocketInfo->Buffer));
 						if (packets_to_send.size() > 0)
 						{
-							
-							
 							sprintf_s(current_packet, packets_to_send.back());
-							packets_to_send.pop_back();
+							packets_to_send.erase(packets_to_send.begin());
 						}
 						else
 						{
@@ -762,7 +766,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			// and begin writing data to the client.
 
 		case FD_WRITE:
-			OutputDebugString("FD_WRITE");
+			OutputDebugString("FD_WRITE\n");
 			if (sending_file && incoming_file)
 			{
 				MessageBox(hwnd, "sending_file and incoming file is true, ERROR", "Critical Error", MB_ICONERROR);
@@ -796,7 +800,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			else if (sending_file)
 			{
 				memset(SocketInfo->Buffer, 0, sizeof(SocketInfo->Buffer));
-				sprintf_s(SocketInfo->Buffer, current_packet);
+				sprintf_s(SocketInfo->Buffer, "%s", current_packet);
 			}
 
 			if (SocketInfo->BytesRECV > SocketInfo->BytesSEND)
@@ -855,7 +859,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			break;
 
 		case FD_CLOSE:
-			OutputDebugString("FD_CLOSE");
+			OutputDebugString("FD_CLOSE\n");
+			incoming_file = FALSE;
+			sending_file = FALSE;
+			first_ack = FALSE;
+			incoming_final_message = FALSE;
 			printf("Closing socket %d\n", wParam);
 			FreeSocketInformation(wParam);
 
@@ -925,8 +933,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			memset(datagram, 0, sizeof(datagram));
 			sprintf_s(datagram, GetInitMessage(file_to_send).c_str());
 			SocketInfo = GetSocketInformation(test);
-
-			send(test, datagram, strlen(datagram)+1, 0);
+			size = strlen(datagram) + 1;
+			send(test, datagram, size, 0);
 			
 			break;
 
