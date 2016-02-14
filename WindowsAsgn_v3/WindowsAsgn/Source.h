@@ -74,7 +74,7 @@ that are used with this program.
 #define EOT 0x04
 #define ACK 0x06
 
-#define MAXBUF	8192
+#define MAXBUF	65535
 void updateStatistic(HWND hList, int avg, int sent, int lost, int data, int time);
 HWND CreateListView(HWND parent);
 void GetTextFromHost();

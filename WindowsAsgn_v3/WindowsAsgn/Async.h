@@ -9,9 +9,10 @@
 
 #define PORT 5150
 #define DATA_BUFSIZE 8192
-#define ACK  0x06
-#define SOT  0x02
-#define EOT  0x04
+
+#define ACK 0x06
+#define SOT 0x02
+#define EOT 0x04
 
 typedef struct _SOCKET_INFORMATION {
 	BOOL RecvPosted;
