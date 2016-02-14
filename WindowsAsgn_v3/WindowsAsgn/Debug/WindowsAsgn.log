@@ -1,8 +1,13 @@
+<<<<<<< HEAD
 ﻿Build started 2/13/2016 10:22:08 PM.
+=======
+﻿Build started 2016-02-12 9:56:22 AM.
+>>>>>>> d62d88bf8e11f9f13213383c68269751bac05c98
      1>Project "C:\Users\Tyler\Desktop\WindowsSocket\WindowsAsgn_v3\WindowsAsgn\WindowsAsgn.vcxproj" on node 2 (Build target(s)).
      1>ClCompile:
          C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\CL.exe /c /Icomctl32.lib /ZI /nologo /W3 /WX- /sdl /Od /Oy- /D _MBCS /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"Debug\\" /Fd"Debug\vc140.pdb" /Gd /TP /analyze- /errorReport:prompt Source.cpp
          Source.cpp
+<<<<<<< HEAD
      1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(236): warning C4101: 'msg': unreferenced local variable
      1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(240): warning C4101: 'Window': unreferenced local variable
      1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(419): warning C4101: 'client_len': unreferenced local variable
@@ -18,14 +23,38 @@
          c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(1278): note: consider using '%hu' in the format string
      1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(1286): warning C4101: 'l': unreferenced local variable
      1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(1286): warning C4101: 'r': unreferenced local variable
+=======
+     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(232): warning C4101: 'msg': unreferenced local variable
+     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(236): warning C4101: 'Window': unreferenced local variable
+     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(470): warning C4244: '=': conversion from 'LONGLONG' to 'long', possible loss of data
+     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(507): warning C4244: '=': conversion from 'LONGLONG' to 'long', possible loss of data
+     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(535): warning C4018: '<': signed/unsigned mismatch
+     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(489): warning C4101: 'c': unreferenced local variable
+     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(601): warning C4101: 'hdc': unreferenced local variable
+     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(607): warning C4101: 'textInput': unreferenced local variable
+     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(616): warning C4101: 'server': unreferenced local variable
+     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(602): warning C4101: 'hSubMenu': unreferenced local variable
+     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(616): warning C4101: 'client': unreferenced local variable
+     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(974): warning C4477: 'sscanf_s' : format string '%zu' requires an argument of type 'unsigned int *', but variadic argument 1 has type 'short *'
+         c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(974): note: consider using '%hu' in the format string
+     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(982): warning C4101: 'l': unreferenced local variable
+     1>c:\users\tyler\desktop\windowssocket\windowsasgn_v3\windowsasgn\source.cpp(982): warning C4101: 'r': unreferenced local variable
+>>>>>>> d62d88bf8e11f9f13213383c68269751bac05c98
        Link:
          C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\Tyler\Desktop\WindowsSocket\WindowsAsgn_v3\Debug\WindowsAsgn.exe" /INCREMENTAL /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /Debug /PDB:"C:\Users\Tyler\Desktop\WindowsSocket\WindowsAsgn_v3\Debug\WindowsAsgn.pdb" /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\Tyler\Desktop\WindowsSocket\WindowsAsgn_v3\Debug\WindowsAsgn.lib" /MACHINE:X86 Debug\Resource.res
          Debug\Async.obj
          Debug\Source.obj
+<<<<<<< HEAD
      1>Async.obj : warning LNK4099: PDB 'vc140.pdb' was not found with 'Async.obj' or at 'C:\Users\Tyler\Desktop\WindowsSocket\WindowsAsgn_v3\Debug\vc140.pdb'; linking object as if no debug info
+=======
+>>>>>>> d62d88bf8e11f9f13213383c68269751bac05c98
          WindowsAsgn.vcxproj -> C:\Users\Tyler\Desktop\WindowsSocket\WindowsAsgn_v3\Debug\WindowsAsgn.exe
      1>Done Building Project "C:\Users\Tyler\Desktop\WindowsSocket\WindowsAsgn_v3\WindowsAsgn\WindowsAsgn.vcxproj" (Build target(s)).
 
 Build succeeded.
 
+<<<<<<< HEAD
 Time Elapsed 00:00:03.08
+=======
+Time Elapsed 00:00:04.06
+>>>>>>> d62d88bf8e11f9f13213383c68269751bac05c98

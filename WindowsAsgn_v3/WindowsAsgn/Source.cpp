@@ -4,24 +4,24 @@ SOURCE FILE:	Source.cpp
 PROGRAM:		Networking with Windows
 
 FUNCTIONS		TCHAR* GetTextFromInput();
-				void SetOutputText(TCHAR* text, int len);
-				void AppendOutputText(TCHAR* text);
-				int WINAPI WinMain(	HINSTANCE hInst,
-									HINSTANCE hprevInstance,
-									LPSTR lspszCmdParam,
-									int nCmdShow);
-				LRESULT CALLBACK WndProc(
-									HWND hwnd,
-									UINT Message,
-									WPARAM wParam,
-									LPARAM lParam);
+void SetOutputText(TCHAR* text, int len);
+void AppendOutputText(TCHAR* text);
+int WINAPI WinMain(	HINSTANCE hInst,
+HINSTANCE hprevInstance,
+LPSTR lspszCmdParam,
+int nCmdShow);
+LRESULT CALLBACK WndProc(
+HWND hwnd,
+UINT Message,
+WPARAM wParam,
+LPARAM lParam);
 
 DATE:			January 16th, 2016
 
 REVISIONS:		January 17th, 2016 (Tyler Trepanier-Bracken)
-					Integrating Internet utitlies with this file.
-				January 20th, 2016 (Tyler Trepanier-Bracken)
-					Added menu items.
+Integrating Internet utitlies with this file.
+January 20th, 2016 (Tyler Trepanier-Bracken)
+Added menu items.
 
 DESIGNER:		Tyler Trepanier-Bracken
 
@@ -30,7 +30,7 @@ PROGRAMMER		Tyler Trepanier-Bracken
 NOTES:
 The main entry point into the Networking with Windows program. This program contains
 a menu having the options of changing the conversion method as well as clearing the
-output text. 
+output text.
 
 There are short wrapper messages such as SetOutputText which sets the output text
 and enhances readability of the program.
@@ -56,11 +56,14 @@ HMENU combo_id = (HMENU)150;
 
 HINSTANCE hInst;
 
-static int avg_time		= 0;
-static int packets_sent	= 0;
-static int packets_lost	= 0;
-static int total_data	= 0;
-static int total_time	= 0;
+static float avg_send_time = 0;
+static float avg_recv_time = 0;
+static int packets_sent = 0;
+static int packets_recv = 0;
+static int total_data_sent = 0;
+static int total_data_recv = 0;
+static long total_recv_time = 0;
+static long total_send_time = 0;
 
 char ip_text[20] = { '\0' };
 short port = 5150;
@@ -75,7 +78,7 @@ BOOL incoming_file = FALSE;
 BOOL incoming_final_message = FALSE;
 BOOL first_ack = FALSE;
 
-TCHAR Name[] = TEXT("The Server");
+TCHAR Name[] = TEXT("The Client");
 
 LPSOCKET_INFORMATION SocketInfoList;
 sockaddr sockAddrClient;
@@ -86,6 +89,7 @@ SOCKET test;
 #define WM_SOCKET_UDP 550
 
 long delay(SYSTEMTIME t1, SYSTEMTIME t2);
+float avg_delay(long time, int num_packets);
 
 BOOL CALLBACK AboutDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 {
@@ -113,10 +117,10 @@ BOOL CALLBACK AboutDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam
 
 HWND CreateListView(HWND parent)
 {
-	
+
 	RECT rcClient;
 	GetClientRect(parent, &rcClient);
-	
+
 	int width = rcClient.right - rcClient.left;
 	int height = rcClient.bottom - rcClient.top;
 
@@ -133,13 +137,13 @@ HWND CreateListView(HWND parent)
 		listviewHeight,
 		parent, NULL, NULL, NULL);
 
-	
+
 
 	LVCOLUMN lvc;
 	lvc.mask = LVCF_FMT | LVCF_WIDTH | LVCF_TEXT | LVCF_SUBITEM;
 	lvc.iSubItem = 0;
 	lvc.pszText = "Total time";
-	lvc.cx = listviewWidth/5;
+	lvc.cx = listviewWidth / 5;
 	lvc.fmt = LVCFMT_LEFT;
 	ListView_InsertColumn(hListView, 0, &lvc);
 
@@ -209,15 +213,15 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hprevInstance,
 	if (!RegisterClassEx(&Wcl))
 		return 0;
 
-	hwnd = CreateWindow(Name, 
-		Name, 
+	hwnd = CreateWindow(Name,
+		Name,
 		WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
-		CW_USEDEFAULT, 
 		CW_USEDEFAULT,
-		600, 
-		500, 
-		NULL, 
-		NULL, 
+		CW_USEDEFAULT,
+		600,
+		500,
+		NULL,
+		NULL,
 		hInst,
 		NULL);
 	ShowWindow(hwnd, nCmdShow);
@@ -249,7 +253,7 @@ void SetServer(SOCKET* Accept) {
 	{
 		sock_type = SOCK_DGRAM;
 	}
-	else 
+	else
 	{
 		OutputDebugString("[[[ SET SERVER ERROR ]]]\n");
 		OutputDebugString("protocol is not UDP or TCP, critical failure.\n");
@@ -277,7 +281,7 @@ void SetServer(SOCKET* Accept) {
 	{
 		WSAAsyncSelect(Listen, hwnd, WM_SOCKET_UDP, FD_READ | FD_WRITE | FD_CLOSE);
 	}
-	
+
 
 	InternetAddr.sin_family = AF_INET;
 	InternetAddr.sin_port = htons(PORT);
@@ -289,7 +293,7 @@ void SetServer(SOCKET* Accept) {
 		OutputDebugString("Unable to bind to socket.\n");
 		return;
 	}
-	
+
 	test = Listen;
 
 	if (protocol == TCP)
@@ -440,7 +444,7 @@ void ClientConnect()
 	CreateSocketInformation(test);
 }
 
-HANDLE saveFile() 
+HANDLE saveFile()
 {
 	TCHAR   szFile[MAX_PATH] = TEXT("\0");
 	OPENFILENAME   ofn;
@@ -497,7 +501,7 @@ HANDLE selectFile() {
 	ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 
 	// Display the Open dialog box. 
-	
+
 	if (GetOpenFileName(&ofn) == TRUE) {
 		OutputDebugString(ofn.lpstrFile);
 		hf = CreateFile(ofn.lpstrFile,
@@ -556,8 +560,8 @@ BOOL appendtofile(HANDLE file, char* segment, int size)
 {
 	//char databuf[MAXBUF] = { '\0' };
 	DWORD BytesWroteToFile = 0;
-	
-	if (WriteFile(file, segment, size+1, &BytesWroteToFile, NULL) == FALSE)
+
+	if (WriteFile(file, segment, size + 1, &BytesWroteToFile, NULL) == FALSE)
 	{
 		return FALSE;
 	}
@@ -584,7 +588,7 @@ std::string GetInitMessage(HANDLE file)
 
 	FileSize = size.QuadPart;
 	totalPackets = FileSize / (packet_size - 1);
-	if (FileSize % (packet_size -1) > 0)
+	if (FileSize % (packet_size - 1) > 0)
 	{
 		totalPackets += 1;
 	}
@@ -602,7 +606,7 @@ std::vector<char*> GetPacketsFromFile(HANDLE file)
 {
 	char databuf[MAXBUF] = { '\0' };
 	char c[10];
-	
+
 	std::vector<char*> packetarray;
 	long FileSize = 0;
 	int totalPackets = 0;
@@ -626,33 +630,33 @@ std::vector<char*> GetPacketsFromFile(HANDLE file)
 		totalPackets += 1;
 	}
 	totalPackets *= frequency;
-	
-	holder = (char**)malloc(totalPackets * (packet_size+1));
+
+	holder = (char**)malloc(totalPackets * (packet_size + 1));
 	while (count < totalPackets)
 	{
-		holder[count] = (char*)malloc(packet_size+1);
+		holder[count] = (char*)malloc(packet_size + 1);
 		if (holder[count] == NULL) {
 			OutputDebugString("{{{{shit}}}}");
 		}
-			
+
 		memset(holder[count], 0, packet_size);
 		count++;
-		
+
 	}
 	count = 0;
 	while (count < totalPackets)
 	{
-		if (ReadFile(file, holder[count], packet_size-1, &BytesReadFromFile, NULL) == FALSE)
+		if (ReadFile(file, holder[count], packet_size - 1, &BytesReadFromFile, NULL) == FALSE)
 		{
 			packetarray.empty();
 			return packetarray;
 		}
-		else if (BytesReadFromFile < (packet_size-1) || BytesReadFromFile == 0)
+		else if (BytesReadFromFile < (packet_size - 1) || BytesReadFromFile == 0)
 		{
 			SetFilePointer(file, 0, NULL, FILE_BEGIN);
-			
+
 		}
-		holder[count][packet_size-1] = '\0';
+		holder[count][packet_size - 1] = '\0';
 
 		/*OutputDebugString("[[");
 		OutputDebugString(holder[count]);
@@ -713,8 +717,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 	HMENU hMenu = 0, hSubMenu;
 	static SOCKET Accept = 0;
 	static LPSOCKET_INFORMATION SocketInfo;
-	DWORD RecvBytes, SendBytes;
-	DWORD Flags;
+	DWORD RecvBytes = 0, SendBytes = 0;
+	DWORD Flags = 0;
 	TCHAR* textInput;
 	DWORD haha = 1000;
 	DWORD read = 0;
@@ -726,12 +730,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 	static BOOL temp_size = TRUE;
 	static BOOL UDP_Init = TRUE;
 	char datagram[MAXBUF] = { '\0' };
-	int size;
+	int size = 0;
 	static std::vector<char*> packets_to_send;
 	static char current_packet[MAXBUF];
 	char SendBigBuffer[MAXBUF];
-	static char* RecvBigBuffer;
-	static DWORD inc_total_read = 0;
+	char* RecvBigBuffer;
 	const SOCKADDR* server = (SOCKADDR*)&remote;
 
 	static int inc_packet_num = 0;
@@ -749,7 +752,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 
 		SetMenu(hwnd, hMenu);
 		break;
-	
+
 	case WM_SOCKET_UDP:
 		if (WSAGETSELECTERROR(lParam))
 		{
@@ -760,7 +763,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 
 		if (UDP_Init)
 		{
-			RecvBigBuffer = (char*)malloc(1000000 * sizeof(char));
+			RecvBigBuffer = new char[1000000];
 			memset(RecvBigBuffer, 0, sizeof(RecvBigBuffer));
 			UDP_Init = FALSE;
 
@@ -769,7 +772,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 		switch (WSAGETSELECTEVENT(lParam))
 		{
 		case FD_READ:
-			GetSystemTime(&stStartTime);
 			OutputDebugString("[UDP]FD_READ:\n");
 			SocketInfo = GetSocketInformation(wParam);
 
@@ -786,80 +788,54 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			SocketInfo->DataBuf.buf = RecvBigBuffer;
 			SocketInfo->DataBuf.len = 1000000;
 			Flags = 0;
+
+			GetSystemTime(&stStartTime);
 			if (WSARecvFrom(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &RecvBytes,
 				&Flags, NULL, NULL, NULL, NULL) == SOCKET_ERROR)
 			{
 				int err = WSAGetLastError();
-				switch (err)
+				if (err != WSAEWOULDBLOCK)
 				{
-				case WSAEWOULDBLOCK:
 					OutputDebugString("WSARecvFrom: Error WSAEWOULDBLOCK.\n");
-					break;
-				case WSANOTINITIALISED:
-					OutputDebugString("WSARecvFrom: Error WSANOTINITIALISED.\n");
-					break;
-					OutputDebugString("WSARecvFrom: Error WSAEWOULDBLOCK.\n");
-				case WSA_IO_PENDING:
-					OutputDebugString("WSARecvFrom: Error WSA_IO_PENDING.\n");
-					break;
-				case WSA_OPERATION_ABORTED:
-					OutputDebugString("WSARecvFrom: Error WSA_OPERATION_ABORTED.\n");
-					break;
-				case WSAEFAULT:
-					OutputDebugString("WSARecvFrom: Error WSAEFAULT.\n");
-					break;
-				case WSAECONNRESET:
-					OutputDebugString("WSARecvFrom: Error WSAECONNRESET.\n");
-					break;
-				case WSAEINPROGRESS:
-					OutputDebugString("WSARecvFrom: Error WSAEINPROGRESS.\n");
-					break;
-				case WSAEINTR:
-					OutputDebugString("WSARecvFrom: Error WSAEINTR.\n");
-					break;
-				case WSAEINVAL:
-					OutputDebugString("WSARecvFrom: Error WSAEINVAL.\n");
-					break;
-				case WSAEMSGSIZE:
-					OutputDebugString("WSARecvFrom: Error WSAEMSGSIZE.\n");
-					break;
-				case WSAENETDOWN:
-					OutputDebugString("WSARecvFrom: Error WSAENETDOWN.\n");
-					break;
+					/*printf("WSARecv() failed with error %d\n", WSAGetLastError());
+					FreeSocketInformation(wParam);
+					return 0;*/
 				}
+			}
+			GetSystemTime(&stEndTime);
+
+			if (RecvBytes > 0)
+			{
+				packets_recv++;
+				total_data_recv += RecvBytes;
+				total_recv_time += delay(stStartTime, stEndTime);
+				avg_recv_time = avg_delay(total_recv_time, packets_recv);
 			}
 
-			if (RecvBytes > 0 && RecvBytes <= 1000000)
+			if (temp_size)
 			{
-				if (temp_size)
-				{
-					temp_size = FALSE;
-					inc_packet_size = (int)RecvBytes;
-				}
-				else
-				{
-					OutputDebugString(SocketInfo->DataBuf.buf);
-					//appendtofile(fileSave, SocketInfo->DataBuf.buf, (int)RecvBytes + 1);
-				}
-				memset(SocketInfo->DataBuf.buf, 0, RecvBytes);
+				temp_size = FALSE;
+				inc_packet_size = (int)RecvBytes;
 			}
-			else if(temp_size)
+			else
 			{
 				inc_packet_size = 0;
 			}
 
-			total_data += (int)RecvBytes;
-			inc_total_read += (int)RecvBytes;
 
+			/*if ((inc_total_read + inc_packet_size) > 1000000)
+			{
+			appendtofile(fileSave, RecvBigBuffer, inc_total_read + 1);
+			inc_total_read = 0;
+			memset(RecvBigBuffer, 0, sizeof(RecvBigBuffer));
+			}*/
 
-			GetSystemTime(&stEndTime);
-			sprintf_s(datagram, "Time it took to read a message... %ld ms\n", delay(stStartTime, stEndTime));
-			OutputDebugString(datagram);
-		
 			break;
 
 		case FD_WRITE:
+
 			OutputDebugString("[UDP]FD_WRITE\n");
+
 			SocketInfo = GetSocketInformation(wParam);
 
 			if (SocketInfo == NULL)
@@ -869,7 +845,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 
 			if (sending_file && packets_to_send.size() > 0)
 			{
-				SocketInfo->DataBuf.len = 7; 
+				SocketInfo->DataBuf.len = 7;
 				sprintf_s(current_packet, packets_to_send.front());
 				packets_to_send.erase(packets_to_send.begin());
 			}
@@ -881,6 +857,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			SocketInfo->DataBuf.len = strlen(current_packet) + 1;
 
 			Flags = 0;
+
+			GetSystemTime(&stStartTime);
 			if (sendto(SocketInfo->Socket, SocketInfo->DataBuf.buf, SocketInfo->DataBuf.len,
 				Flags, (struct sockaddr *)&remote, sizeof(remote)) == SOCKET_ERROR)
 			{
@@ -888,18 +866,17 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				if (err != WSAEWOULDBLOCK)
 				{
 					OutputDebugString("WSASendTo: WSAEWOULDBLOCK\n");
-					/*printf("WSARecv() failed with error %d\n", WSAGetLastError());
-					FreeSocketInformation(wParam);
-					return 0;*/
 				}
 			}
+			GetSystemTime(&stEndTime);
+
+			sprintf_s(current_packet, "%d ", SocketInfo->DataBuf.len);
+			OutputDebugString(current_packet);
 
 			packets_sent++;
-			total_data += strlen(current_packet) + 1;
-			for (int i = 0; i < MAXBUF; i++)
-			{
-				SendBigBuffer[i] = '\0';
-			}
+			total_data_sent += strlen(current_packet) + 1;
+			total_send_time += delay(stStartTime, stEndTime);
+			avg_send_time = avg_delay(total_send_time, packets_sent);
 
 			if (sending_file)
 			{
@@ -912,20 +889,38 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				}
 			}
 
+			/*
+			Serves no purpose other than allow the server some time
+			to process the sent messages.
+
+			THIS IS NECESSARY, removing this section will result in a
+			buffer overflow for the reader.
+			*/
+			for (int i = 0; i < MAXBUF; i++)
+			{
+				SendBigBuffer[i] = '\0';
+			}
+			for (int i = 0; i < MAXBUF; i++)
+			{
+				SendBigBuffer[i] = '\0';
+			}
+
 			break;
-			
+
 		case FD_CLOSE:
 			OutputDebugString("[UDP]FD_CLOSE");
 			printf("Closing socket %d\n", wParam);
 			FreeSocketInformation(wParam);
-			free(holder);
-			free(RecvBigBuffer);
-			UDP_Init = TRUE;
+
+			if (holder != NULL)
+			{
+				free(holder);
+			}
 			break;
 		}
 		memset(SendBigBuffer, 0, sizeof(SendBigBuffer));
 		break;
-	
+
 
 	case WM_SOCKET_TCP:
 		if (WSAGETSELECTERROR(lParam))
@@ -946,7 +941,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			}
 			WSAAsyncSelect(Accept, hwnd, WM_SOCKET_TCP, FD_READ | FD_WRITE | FD_CLOSE);
 			OutputDebugString("Accepted the client!\n");
-			
+
 			// Create a socket information structure to associate with the
 			// socket for processing I/O.
 			CreateSocketInformation(Accept);
@@ -954,6 +949,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 
 		case FD_READ:
 			OutputDebugString("FD_READ");
+
 			SocketInfo = GetSocketInformation(wParam);
 
 			if (SocketInfo == NULL)
@@ -974,6 +970,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				SocketInfo->DataBuf.len = DATA_BUFSIZE;
 
 				Flags = 0;
+				GetSystemTime(&stStartTime);
 				if (WSARecv(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &RecvBytes,
 					&Flags, NULL, NULL) == SOCKET_ERROR)
 				{
@@ -988,7 +985,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				{
 					SocketInfo->BytesRECV = RecvBytes;
 				}
-				total_data += RecvBytes;
+				GetSystemTime(&stEndTime);
+
+				total_data_recv += RecvBytes;
+				packets_recv++;
+				total_recv_time += delay(stStartTime, stEndTime);
+				avg_send_time = avg_delay(total_send_time, packets_sent);
+
 				if (!incoming_file && sscanf_s(SocketInfo->DataBuf.buf, "size: %d num: %d", &inc_packet_size, &inc_packet_num) == 2)
 				{
 					incoming_file = TRUE;
@@ -1003,21 +1006,20 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				}
 				else if (incoming_file)
 				{
-					
+
 					OutputDebugString("[[[");
 					OutputDebugString("strlen:");
 					sprintf_s(datagram, "%d }{", strlen(SocketInfo->DataBuf.buf));
 					OutputDebugString(datagram);
 					OutputDebugString(SocketInfo->DataBuf.buf);
 					OutputDebugString("]]]\n");
-					total_data = packet_size;
-					
+
 					appendtofile(fileSave, SocketInfo->DataBuf.buf, strlen(SocketInfo->DataBuf.buf));
-					
+
 				}
 				else if (sending_file && SocketInfo->BytesRECV == packet_size)
 				{
-					
+
 					if (SocketInfo->DataBuf.buf[0] == SOT)
 					{
 						sending_file = TRUE;
@@ -1056,18 +1058,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 
 		case FD_WRITE:
 			OutputDebugString("FD_WRITE");
-			if (sending_file && incoming_file)
-			{
-				MessageBox(hwnd, "sending_file and incoming file is true, ERROR", "Critical Error", MB_ICONERROR);
-				break;
-			}
 
 			SocketInfo = GetSocketInformation(wParam);
-			if (SocketInfo == NULL)
+			if (SocketInfo == NULL || (sending_file && incoming_file))
 			{
 				break;
 			}
-
 
 			if (incoming_file)
 			{
@@ -1075,13 +1071,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				{
 					memset(SocketInfo->Buffer, SOT, sizeof(SocketInfo->Buffer));
 				}
-				else 
+				else
 				{
 					memset(SocketInfo->Buffer, ACK, sizeof(SocketInfo->Buffer));
 				}
-					
+
 			}
-			else if (incoming_final_message) 
+			else if (incoming_final_message)
 			{
 				incoming_final_message = FALSE;
 				memset(SocketInfo->Buffer, EOT, sizeof(SocketInfo->Buffer));
@@ -1103,8 +1099,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				{
 					SocketInfo->DataBuf.len = SocketInfo->BytesRECV - SocketInfo->BytesSEND;
 				}
-				
 
+				GetSystemTime(&stStartTime);
 				if (WSASend(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &SendBytes, 0,
 					NULL, NULL) == SOCKET_ERROR)
 				{
@@ -1119,6 +1115,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				{
 					SocketInfo->BytesSEND += SendBytes;
 				}
+				GetSystemTime(&stEndTime);
+
+				total_data_sent += SendBytes;
+				packets_sent++;
+				total_send_time += delay(stStartTime, stEndTime);
+				avg_send_time = avg_delay(total_send_time, packets_sent);
+
 			}
 
 			if (SocketInfo->BytesSEND == SocketInfo->BytesRECV || (SocketInfo->BytesSEND == inc_packet_size && incoming_file))
@@ -1130,7 +1133,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				{
 					first_ack = FALSE;
 				}
-					
+
 
 				// If a RECV occurred during our SENDs then we need to post an FD_READ
 				// notification on the socket.
@@ -1170,13 +1173,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			packet_size = 1000;
 			break;
 		case ID_PACKETSIZE_4:
-			packet_size = 1000;
+			packet_size = 4000;
 			break;
 		case ID_PACKETSIZE_20:
-			packet_size = 1000;
+			packet_size = 20000;
 			break;
 		case ID_PACKETSIZE_60:
-			packet_size = 1000;
+			packet_size = 60000;
 			break;
 		case ID_PACKETSIZE_CUSTOM:
 			DialogBox(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_ABOUT), hwnd, AboutDlgProc);
@@ -1200,8 +1203,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			GetTextFromHost();
 			GetTextFromPort();
 			OutputDebugString(ip_text);
-			if (protocol == TCP)					
-			{					
+			if (protocol == TCP)
+			{
 				SetClient(&Accept);
 				ClientConnect();
 			}
@@ -1238,7 +1241,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				PostMessage(hwnd, WM_SOCKET_UDP, test, FD_WRITE);
 				sending_file = TRUE;
 			}
-			
+
 			break;
 
 		case ID_FILE_SELECT:
@@ -1248,7 +1251,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			fileSave = saveFile();
 			break;
 		case ID_FILE_EXIT:
-			packets_to_send = GetPacketsFromFile(file_to_send);
+			SendMessage(hwnd, WM_DESTROY, NULL, NULL);
 			break;
 		}
 		break;
@@ -1256,6 +1259,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 	case WM_DESTROY:	// Terminate program
 		CloseHandle(file_to_send);
 		CloseHandle(fileSave);
+
+		if (holder != NULL)
+			free(holder);
+
 		WSACleanup();
 		PostQuitMessage(0);
 		break;
@@ -1266,8 +1273,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 
 void GetTextFromHost() {
 	int len = SendMessage(inputHost, WM_GETTEXTLENGTH, 0, 0);
-	TCHAR* buffer = new char[len+1];
-	SendMessage(inputHost, WM_GETTEXT, (WPARAM)len+1, (LPARAM)buffer);
+	TCHAR* buffer = new char[len + 1];
+	SendMessage(inputHost, WM_GETTEXT, (WPARAM)len + 1, (LPARAM)buffer);
 	strncpy_s(ip_text, buffer, sizeof(ip_text));
 }
 
@@ -1275,7 +1282,7 @@ void GetTextFromPort() {
 	int len = SendMessage(inputPort, WM_GETTEXTLENGTH, 0, 0);
 	TCHAR* buffer = new char[len + 1];
 	SendMessage(inputPort, WM_GETTEXT, (WPARAM)len + 1, (LPARAM)buffer);
-	sscanf_s(buffer, "%zu" , &port);
+	sscanf_s(buffer, "%zu", &port);
 }
 
 void SetOutputText(TCHAR* text, int len) {
@@ -1284,7 +1291,7 @@ void SetOutputText(TCHAR* text, int len) {
 
 void AppendOutputText(TCHAR* text) {
 	DWORD l, r;
-	
+
 	//SendMessage(output, EM_GETSEL, (WPARAM)&l, (LPARAM)&r);
 	//SendMessage(output, EM_SETSEL, -1, -1);
 	//SendMessage(output, EM_REPLACESEL, TRUE, (LPARAM)text);
@@ -1379,4 +1386,12 @@ long delay(SYSTEMTIME t1, SYSTEMTIME t2)
 	d = (t2.wSecond - t1.wSecond) * 1000;
 	d += (t2.wMilliseconds - t1.wMilliseconds);
 	return(d);
+}
+
+// Computer the average time for packet transmission
+float avg_delay(long time, int num_packets)
+{
+	float avg = ((float)time) / ((float)num_packets);
+
+	return avg;
 }
