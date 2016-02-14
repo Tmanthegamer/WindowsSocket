@@ -78,7 +78,7 @@ BOOL incoming_file = FALSE;
 BOOL incoming_final_message = FALSE;
 BOOL first_ack = FALSE;
 
-TCHAR Name[] = TEXT("The Client");
+TCHAR Name[] = TEXT("The Server");
 
 LPSOCKET_INFORMATION SocketInfoList;
 sockaddr sockAddrClient;
@@ -561,7 +561,7 @@ BOOL appendtofile(HANDLE file, char* segment, int size)
 	//char databuf[MAXBUF] = { '\0' };
 	DWORD BytesWroteToFile = 0;
 
-	if (WriteFile(file, segment, size + 1, &BytesWroteToFile, NULL) == FALSE)
+	if (WriteFile(file, segment, size, &BytesWroteToFile, NULL) == FALSE)
 	{
 		return FALSE;
 	}
@@ -729,6 +729,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 	static BOOL connected = FALSE;
 	static BOOL temp_size = TRUE;
 	static BOOL UDP_Init = TRUE;
+	static BOOL first_send = FALSE;
 	char datagram[MAXBUF] = { '\0' };
 	int size = 0;
 	static std::vector<char*> packets_to_send;
@@ -908,7 +909,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			break;
 
 		case FD_CLOSE:
-			OutputDebugString("[UDP]FD_CLOSE");
+			OutputDebugString("[UDP]FD_CLOSE\n");
 			printf("Closing socket %d\n", wParam);
 			FreeSocketInformation(wParam);
 
@@ -948,7 +949,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			break;
 
 		case FD_READ:
-			OutputDebugString("FD_READ");
+			OutputDebugString("[TCP]FD_READ\n");
 
 			SocketInfo = GetSocketInformation(wParam);
 
@@ -989,6 +990,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 
 				total_data_recv += RecvBytes;
 				packets_recv++;
+				count++;
 				total_recv_time += delay(stStartTime, stEndTime);
 				avg_send_time = avg_delay(total_send_time, packets_sent);
 
@@ -996,20 +998,17 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				{
 					incoming_file = TRUE;
 					first_ack = TRUE;
+					count = 0;
 					//PostMessage(hwnd, WM_SOCKET_TCP, wParam, FD_READ);
 				}
 				else if (incoming_file && SocketInfo->DataBuf.buf[0] == EOT)
 				{
 					incoming_file = FALSE;
 					incoming_final_message = TRUE;
-					appendtofile(fileSave, "\n\0", 2);
 				}
 				else if (incoming_file)
 				{
-
-					OutputDebugString("[[[");
-					OutputDebugString("strlen:");
-					sprintf_s(datagram, "%d }{", strlen(SocketInfo->DataBuf.buf));
+					sprintf_s(datagram, "[[[strlen:%d][remaining:%d]\n[", strlen(SocketInfo->DataBuf.buf), (inc_packet_num-count));
 					OutputDebugString(datagram);
 					OutputDebugString(SocketInfo->DataBuf.buf);
 					OutputDebugString("]]]\n");
@@ -1017,23 +1016,27 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 					appendtofile(fileSave, SocketInfo->DataBuf.buf, strlen(SocketInfo->DataBuf.buf));
 
 				}
-				else if (sending_file && SocketInfo->BytesRECV == packet_size)
+				
+				if (first_send && SocketInfo->BytesRECV == packet_size)
 				{
-
 					if (SocketInfo->DataBuf.buf[0] == SOT)
 					{
 						sending_file = TRUE;
+						first_send = FALSE;
 						packets_to_send = GetPacketsFromFile(file_to_send);
-						sprintf_s(current_packet, packets_to_send.back());
-						packets_to_send.pop_back();
+						sprintf_s(current_packet, packets_to_send.front());
+						packets_to_send.erase(packets_to_send.begin());
 					}
-					else if (SocketInfo->DataBuf.buf[0] == ACK)
+				}
+				else if (sending_file && SocketInfo->BytesRECV == packet_size)
+				{
+					if (SocketInfo->DataBuf.buf[0] == ACK)
 					{
 						memset(SocketInfo->Buffer, 0, sizeof(SocketInfo->Buffer));
 						if (packets_to_send.size() > 0)
 						{
-							sprintf_s(current_packet, packets_to_send.back());
-							packets_to_send.pop_back();
+							sprintf_s(current_packet, packets_to_send.front());
+							packets_to_send.erase(packets_to_send.begin());
 						}
 						else
 						{
@@ -1057,7 +1060,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			// and begin writing data to the client.
 
 		case FD_WRITE:
-			OutputDebugString("FD_WRITE");
+			OutputDebugString("[TCP]FD_WRITE\n");
 
 			SocketInfo = GetSocketInformation(wParam);
 			if (SocketInfo == NULL || (sending_file && incoming_file))
@@ -1144,14 +1147,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 					PostMessage(hwnd, WM_SOCKET_TCP, wParam, FD_READ);
 				}
 			}
-			OutputDebugString("Wrote the message:[[[");
-			OutputDebugString(SocketInfo->DataBuf.buf);
-			OutputDebugString("]]]\n");
+			sprintf_s(datagram, "Message:[[[strlen:%d]\n[", strlen(SocketInfo->DataBuf.buf));
+			OutputDebugString(datagram);
 
 			break;
 
 		case FD_CLOSE:
-			OutputDebugString("FD_CLOSE");
+			OutputDebugString("[TCP]FD_CLOSE\n");
+			first_send = FALSE;
 			printf("Closing socket %d\n", wParam);
 			FreeSocketInformation(wParam);
 
@@ -1232,7 +1235,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				memset(datagram, 0, sizeof(datagram));
 				sprintf_s(datagram, GetInitMessage(file_to_send).c_str());
 				SocketInfo = GetSocketInformation(test);
-
+				first_send = TRUE;
 				send(test, datagram, strlen(datagram) + 1, 0);
 			}
 			else if (protocol == UDP)
