@@ -1,9 +1,0 @@
-﻿Build started 2016-02-10 9:52:10 PM.
-     1>Project "C:\Users\Tyler\Google Drive\Notes\COMP 4985 - Windows\Assignments\WindowsSocket\tcp_client\tcp_client\tcp_client.vcxproj" on node 2 (Build target(s)).
-     1>Link:
-         tcp_client.vcxproj -> C:\Users\Tyler\Google Drive\Notes\COMP 4985 - Windows\Assignments\WindowsSocket\tcp_client\Debug\tcp_client.exe
-     1>Done Building Project "C:\Users\Tyler\Google Drive\Notes\COMP 4985 - Windows\Assignments\WindowsSocket\tcp_client\tcp_client\tcp_client.vcxproj" (Build target(s)).
-
-Build succeeded.
-
-Time Elapsed 00:00:00.17
