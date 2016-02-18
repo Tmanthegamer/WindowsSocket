@@ -700,7 +700,7 @@ void CreateInputText(HWND hwnd)
 		NULL);
 
 	/* Input Text field. */
-	inputHost = CreateWindow(TEXT("EDIT"), TEXT("192.168.1.70"),
+	inputHost = CreateWindow(TEXT("EDIT"), TEXT("192.168.0.2"),
 		WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL,
 		10, 30, 250, 20,
 		hwnd,
@@ -751,9 +751,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 	char datagram[MAXBUF] = { '\0' };
 	int size = 0;
 	static std::vector<char*> packets_to_send;
-	static char current_packet[MAXBUF];
-	static char SendBigBuffer[MAXBUF];
-	static char* RecvBigBuffer;
+	static char current_packet[MAXBUF] = { '\0' };
+	static char SendBigBuffer[MAXBUF] = { '\0' };
+	static char* RecvBigBuffer = { '\0' };
 	const SOCKADDR* temp = (SOCKADDR*)&remote;
 
 	static int inc_packet_num = 0;
@@ -858,7 +858,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			if (sending_file && packets_to_send.size() > 0)
 			{
 				SocketInfo->DataBuf.len = 7;
-				sprintf_s(current_packet, packets_to_send.front());
+				sprintf_s(current_packet, "%s", packets_to_send.front());
 				packets_to_send.erase(packets_to_send.begin());
 			}
 			else
@@ -1051,7 +1051,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 						sending_file = TRUE;
 						first_send = FALSE;
 						packets_to_send = GetPacketsFromFile(file_to_send);
-						sprintf_s(current_packet, packets_to_send.front());
+						sprintf_s(current_packet, "%s", packets_to_send.front());
 						packets_to_send.erase(packets_to_send.begin());
 					}
 				}
@@ -1062,7 +1062,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 						memset(SocketInfo->Buffer, 0, sizeof(SocketInfo->Buffer));
 						if (packets_to_send.size() > 0)
 						{
-							sprintf_s(current_packet, packets_to_send.front());
+							sprintf_s(current_packet, "%s", packets_to_send.front());
 							packets_to_send.erase(packets_to_send.begin());
 						}
 						else
@@ -1077,7 +1077,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 								}
 								free(holder);
 								packets_to_send = GetPacketsFromFile(file_to_send);
-								sprintf_s(current_packet, packets_to_send.front());
+								sprintf_s(current_packet, "%s", packets_to_send.front());
 								packets_to_send.erase(packets_to_send.begin());
 							} 
 							else 
@@ -1086,7 +1086,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 							}
 							
 						}
-						sprintf_s(SocketInfo->Buffer, current_packet);
+						sprintf_s(SocketInfo->Buffer, "%s", current_packet);
 					}
 					else if (SocketInfo->DataBuf.buf[0] == EOT)
 					{
@@ -1137,7 +1137,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			else if (sending_file)
 			{
 				memset(SocketInfo->Buffer, 0, sizeof(SocketInfo->Buffer));
-				sprintf_s(SocketInfo->Buffer, current_packet);
+				sprintf_s(SocketInfo->Buffer, "%s", current_packet);
 			}
 
 			if (SocketInfo->BytesRECV > SocketInfo->BytesSEND)
@@ -1285,7 +1285,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			if (protocol == TCP)
 			{
 				memset(datagram, 0, sizeof(datagram));
-				sprintf_s(datagram, GetInitMessage(file_to_send).c_str());
+				sprintf_s(datagram, "%s", GetInitMessage(file_to_send).c_str());
 				SocketInfo = GetSocketInformation(test);
 				first_send = TRUE;
 				send(test, datagram, strlen(datagram) + 1, 0);
