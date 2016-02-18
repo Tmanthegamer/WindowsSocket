@@ -90,6 +90,7 @@ SOCKET test;
 
 #define WM_SOCKET_TCP 225
 #define WM_SOCKET_UDP 550
+#define WM_CLIENT_TCP 220
 
 long delay(SYSTEMTIME t1, SYSTEMTIME t2);
 float avg_delay(long time, int num_packets);
@@ -435,7 +436,7 @@ void SetClient(SOCKET* Accept)
 		return;
 	}
 	test = sock;
-	WSAAsyncSelect(sock, hwnd, WM_SOCKET_TCP, FD_CLOSE | FD_READ);
+	WSAAsyncSelect(sock, hwnd, WM_CLIENT_TCP, FD_CLOSE | FD_READ);
 }
 
 void ClientConnect()
@@ -1044,7 +1045,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 
 				}
 
-				if (first_send && SocketInfo->BytesRECV == packet_size)
+				if (first_send && SocketInfo->BytesRECV > 0)
 				{
 					if (SocketInfo->DataBuf.buf[0] == SOT)
 					{
@@ -1055,7 +1056,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 						packets_to_send.erase(packets_to_send.begin());
 					}
 				}
-				else if (sending_file && SocketInfo->BytesRECV == packet_size)
+				else if (sending_file && SocketInfo->BytesRECV > 0)
 				{
 					if (SocketInfo->DataBuf.buf[0] == ACK)
 					{
@@ -1069,7 +1070,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 						{
 							frequency--;
 							memset(current_packet, 0, sizeof(current_packet));
-							if (frequency != 0)
+							if (frequency <= 0)
 							{
 								for (int i = total_packets - 1; i > -1; i--)
 								{
@@ -1189,6 +1190,199 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 					first_ack = FALSE;
 				}
 
+
+				// If a RECV occurred during our SENDs then we need to post an FD_READ
+				// notification on the socket.
+
+				if (SocketInfo->RecvPosted == TRUE)
+				{
+					SocketInfo->RecvPosted = FALSE;
+					PostMessage(hwnd, WM_SOCKET_TCP, wParam, FD_READ);
+				}
+			}
+
+			updateStatistic(listview, avg_send_time, avg_recv_time, packets_sent,
+				packets_recv, total_data, total_recv_time + total_send_time);
+
+			break;
+
+		case FD_CLOSE:
+			OutputDebugString("[TCP]FD_CLOSE\n");
+			first_send = FALSE;
+			printf("Closing socket %d\n", wParam);
+			FreeSocketInformation(wParam);
+
+			break;
+		}
+
+	case WM_CLIENT_TCP:
+		if (WSAGETSELECTERROR(lParam))
+		{
+			printf("Socket failed with error %d\n", WSAGETSELECTERROR(lParam));
+			FreeSocketInformation(wParam);
+			break;
+		}
+
+		switch (WSAGETSELECTEVENT(lParam))
+		{
+		case FD_READ:
+			OutputDebugString("[TCP]FD_READ\n");
+
+			SocketInfo = GetSocketInformation(wParam);
+
+			if (SocketInfo == NULL)
+			{
+				break;
+			}
+
+			// Read data only if the receive buffer is empty.
+
+			if (SocketInfo->BytesRECV != 0)
+			{
+				SocketInfo->RecvPosted = TRUE;
+				return 0;
+			}
+			else
+			{
+				SocketInfo->DataBuf.buf = SocketInfo->Buffer;
+				SocketInfo->DataBuf.len = DATA_BUFSIZE;
+
+				Flags = 0;
+				GetSystemTime(&stStartTime);
+				if (WSARecv(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &RecvBytes,
+					&Flags, NULL, NULL) == SOCKET_ERROR)
+				{
+					if (WSAGetLastError() != WSAEWOULDBLOCK)
+					{
+						printf("WSARecv() failed with error %d\n", WSAGetLastError());
+						FreeSocketInformation(wParam);
+						return 0;
+					}
+				}
+				else // No error so update the byte count
+				{
+					SocketInfo->BytesRECV = RecvBytes;
+				}
+				GetSystemTime(&stEndTime);
+
+				total_data_recv += (RecvBytes / 1000);
+				packets_recv++;
+				count++;
+				total_recv_time += delay(stStartTime, stEndTime);
+				avg_recv_time = avg_delay(total_send_time, packets_sent);
+
+				if (first_send && SocketInfo->BytesRECV > 0 && SocketInfo->DataBuf.buf[0] == SOT)
+				{
+					sending_file = TRUE;
+					first_send = FALSE;
+					packets_to_send = GetPacketsFromFile(file_to_send);
+					sprintf_s(current_packet, "%s", packets_to_send.front());
+					packets_to_send.erase(packets_to_send.begin());
+				}
+				else if (sending_file && SocketInfo->BytesRECV > 0)
+				{
+					if (SocketInfo->DataBuf.buf[0] == ACK)
+					{
+						memset(SocketInfo->Buffer, 0, sizeof(SocketInfo->Buffer));
+						if (packets_to_send.size() > 0)
+						{
+							sprintf_s(current_packet, "%s", packets_to_send.front());
+							packets_to_send.erase(packets_to_send.begin());
+						}
+						else
+						{
+							frequency--;
+							memset(current_packet, 0, sizeof(current_packet));
+							if (frequency <= 0)
+							{
+								for (int i = total_packets - 1; i > -1; i--)
+								{
+									free(holder[i]);
+								}
+								free(holder);
+								packets_to_send = GetPacketsFromFile(file_to_send);
+								sprintf_s(current_packet, "%s", packets_to_send.front());
+								packets_to_send.erase(packets_to_send.begin());
+							}
+							else
+							{
+								memset(current_packet, EOT, packet_size);
+							}
+
+						}
+						sprintf_s(SocketInfo->Buffer, "%s", current_packet);
+					}
+					else if (SocketInfo->DataBuf.buf[0] == EOT)
+					{
+						sending_file = FALSE;
+						memset(SocketInfo->DataBuf.buf, 0, sizeof(SocketInfo->DataBuf.buf));
+						memset(current_packet, '\0', sizeof(current_packet));
+						memset(SocketInfo->Buffer, 0, sizeof(SocketInfo->Buffer));
+						PostMessage(hwnd, WM_SOCKET_TCP, wParam, FD_CLOSE);
+					}
+				}
+			}
+			total_data = total_data_recv + total_data_sent;
+			avg_time = avg_delay(total_recv_time + total_send_time, packets_sent + packets_recv);
+
+			updateStatistic(listview, avg_send_time, avg_recv_time, packets_sent,
+				packets_recv, total_data, total_recv_time + total_send_time);
+
+			/*
+			DO NOT BREAK HERE SINCE WE GOT A SUCCESSFUL RECV. Go ahead
+			and begin writing data to the client.
+			*/
+		case FD_WRITE:
+			OutputDebugString("[TCP]FD_WRITE\n");
+
+			SocketInfo = GetSocketInformation(wParam);
+			if (SocketInfo == NULL || (sending_file && incoming_file))
+			{
+				break;
+			}
+
+			if(sending_file)
+			{
+				memset(SocketInfo->Buffer, 0, sizeof(SocketInfo->Buffer));
+				sprintf_s(SocketInfo->Buffer, "%s", current_packet);
+			}
+
+			if (SocketInfo->BytesRECV > SocketInfo->BytesSEND)
+			{
+				SocketInfo->DataBuf.buf = SocketInfo->Buffer + SocketInfo->BytesSEND;
+				SocketInfo->DataBuf.len = packet_size + SocketInfo->BytesSEND;
+
+				GetSystemTime(&stStartTime);
+				if (WSASend(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &SendBytes, 0,
+					NULL, NULL) == SOCKET_ERROR)
+				{
+					if (WSAGetLastError() != WSAEWOULDBLOCK)
+					{
+						printf("WSASend() failed with error %d\n", WSAGetLastError());
+						FreeSocketInformation(wParam);
+						return 0;
+					}
+				}
+				else // No error so update the byte count
+				{
+					SocketInfo->BytesSEND += SendBytes;
+				}
+				GetSystemTime(&stEndTime);
+
+				sprintf_s(datagram, "Message:[[[strlen:%d]\n[", strlen(SocketInfo->DataBuf.buf));
+				OutputDebugString(datagram);
+
+				total_data_sent += (SendBytes / 1000);
+				packets_sent++;
+				total_send_time += delay(stStartTime, stEndTime);
+				avg_send_time = avg_delay(total_send_time, packets_sent);
+
+			}
+
+			if (SocketInfo->BytesSEND == SocketInfo->BytesRECV)
+			{
+				SocketInfo->BytesSEND = 0;
+				SocketInfo->BytesRECV = 0;
 
 				// If a RECV occurred during our SENDs then we need to post an FD_READ
 				// notification on the socket.
