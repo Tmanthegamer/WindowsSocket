@@ -1214,6 +1214,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 
 			break;
 		}
+		break;
 
 	case WM_CLIENT_TCP:
 		if (WSAGETSELECTERROR(lParam))
