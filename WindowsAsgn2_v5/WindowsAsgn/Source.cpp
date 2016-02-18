@@ -1335,22 +1335,14 @@ void GetTextFromHost() {
 }
 
 void GetTextFromPort() {
+	int temp = protocol;
+	
 	int len = SendMessage(inputPort, WM_GETTEXTLENGTH, 0, 0);
 	TCHAR* buffer = new char[len + 1];
 	SendMessage(inputPort, WM_GETTEXT, (WPARAM)len + 1, (LPARAM)buffer);
 	sscanf_s(buffer, "%zu", &port);
-}
 
-void SetOutputText(TCHAR* text, int len) {
-	//SendMessage(output, WM_SETTEXT, (WPARAM)len, (LPARAM)text);
-}
-
-void AppendOutputText(TCHAR* text) {
-	DWORD l, r;
-
-	//SendMessage(output, EM_GETSEL, (WPARAM)&l, (LPARAM)&r);
-	//SendMessage(output, EM_SETSEL, -1, -1);
-	//SendMessage(output, EM_REPLACESEL, TRUE, (LPARAM)text);
+	protocol = temp;
 }
 
 void updateStatistic(HWND hList, float savg, float ravg, int sent, int recv, double data, int time) {
