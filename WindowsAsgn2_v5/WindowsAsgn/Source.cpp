@@ -950,7 +950,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 
 		break;
 
-
 	case WM_SOCKET_TCP:
 		if (WSAGETSELECTERROR(lParam))
 		{
@@ -1053,10 +1052,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			updateStatistic(listview, avg_send_time, avg_recv_time, packets_sent,
 				packets_recv, total_data, total_recv_time + total_send_time);
 
-			/*
-			DO NOT BREAK HERE SINCE WE GOT A SUCCESSFUL RECV. Go ahead
-			and begin writing data to the client.
-			*/
 		case FD_WRITE:
 			OutputDebugString("[TCP]FD_WRITE\n");
 
@@ -1066,35 +1061,22 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				break;
 			}
 
-			if (incoming_file)
+			if (incoming_file && SocketInfo->BytesRECV > SocketInfo->BytesSEND)
 			{
 				if (first_ack)
 				{
 					memset(SocketInfo->Buffer, SOT, sizeof(SocketInfo->Buffer));
 				}
-				else
+				else if (incoming_final_message)
+				{
+					memset(SocketInfo->Buffer, EOT, sizeof(SocketInfo->Buffer));
+				}
+				else 
 				{
 					memset(SocketInfo->Buffer, ACK, sizeof(SocketInfo->Buffer));
 				}
-
-			}
-			else if (incoming_final_message)
-			{
-				incoming_final_message = FALSE;
-				memset(SocketInfo->Buffer, EOT, sizeof(SocketInfo->Buffer));
-			}
-
-			if (SocketInfo->BytesRECV > SocketInfo->BytesSEND)
-			{
 				SocketInfo->DataBuf.buf = SocketInfo->Buffer + SocketInfo->BytesSEND;
-				if (incoming_file && first_ack)
-				{
-					SocketInfo->DataBuf.len = inc_packet_size;
-				}
-				else
-				{
-					SocketInfo->DataBuf.len = SocketInfo->BytesRECV - SocketInfo->BytesSEND;
-				}
+				SocketInfo->DataBuf.len = 5;
 
 				GetSystemTime(&stStartTime);
 				if (WSASend(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &SendBytes, 0,
@@ -1113,9 +1095,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				}
 				GetSystemTime(&stEndTime);
 
-				sprintf_s(datagram, "Message:[[[strlen:%d]\n[", strlen(SocketInfo->DataBuf.buf));
-				OutputDebugString(datagram);
-
 				total_data_sent += (SendBytes / 1000);
 				packets_sent++;
 				total_send_time += delay(stStartTime, stEndTime);
@@ -1123,7 +1102,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 
 			}
 
-			if (SocketInfo->BytesSEND == SocketInfo->BytesRECV || (SocketInfo->BytesSEND == inc_packet_size && incoming_file))
+			if (SocketInfo->BytesSEND >= 5)
 			{
 				SocketInfo->BytesSEND = 0;
 				SocketInfo->BytesRECV = 0;
@@ -1132,7 +1111,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				{
 					first_ack = FALSE;
 				}
-
 
 				// If a RECV occurred during our SENDs then we need to post an FD_READ
 				// notification on the socket.
