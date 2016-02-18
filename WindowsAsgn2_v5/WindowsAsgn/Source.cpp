@@ -603,7 +603,7 @@ std::string GetInitMessage(HANDLE file)
 
 	char initmsg[MAXBUF] = { '\0' };
 
-	if (!GetFileSizeEx(file, &size))
+	if (file == INVALID_HANDLE_VALUE || !GetFileSizeEx(file, &size))
 	{
 		//CloseHandle(file);
 		return FALSE; // error condition, could call GetLastError to find out more
@@ -640,7 +640,7 @@ std::vector<char*> GetPacketsFromFile(HANDLE file)
 	DWORD ReadBytes = 0;
 	int count = 0;
 
-	if (!GetFileSizeEx(file, &size))
+	if (file == INVALID_HANDLE_VALUE || !GetFileSizeEx(file, &size))
 	{
 		//CloseHandle(file);
 		return packetarray; // error condition, could call GetLastError to find out more
@@ -1162,6 +1162,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			if (SocketInfo->BytesRECV != 0)
 			{
 				SocketInfo->RecvPosted = TRUE;
+				OutputDebugString("Shit happened");
 				return 0;
 			}
 			else
@@ -1178,6 +1179,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 					{
 						printf("WSARecv() failed with error %d\n", WSAGetLastError());
 						FreeSocketInformation(wParam);
+						OutputDebugString("WSARecv() failure.\n");
 						return 0;
 					}
 				}
@@ -1200,6 +1202,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 					packets_to_send = GetPacketsFromFile(file_to_send);
 					sprintf_s(current_packet, "%s", packets_to_send.front());
 					packets_to_send.erase(packets_to_send.begin());
+					OutputDebugString("[[[Begin send]]]");
 				}
 				else if (sending_file && SocketInfo->BytesRECV > 0)
 				{
@@ -1210,10 +1213,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 						{
 							sprintf_s(current_packet, "%s", packets_to_send.front());
 							packets_to_send.erase(packets_to_send.begin());
+							
+							OutputDebugString(datagram);
 						}
 						else
 						{
 							frequency--;
+							OutputDebugString("[[[Last file packet sent.]]]\n");
 							memset(current_packet, 0, sizeof(current_packet));
 							if (frequency > 0)
 							{
@@ -1236,6 +1242,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 					}
 					else if (SocketInfo->DataBuf.buf[0] == EOT)
 					{
+						OutputDebugString("[[Sending EOT]]\n");
 						sending_file = FALSE;
 						memset(SocketInfo->DataBuf.buf, 0, sizeof(SocketInfo->DataBuf.buf));
 						memset(current_packet, '\0', sizeof(current_packet));
@@ -1272,7 +1279,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			if (SocketInfo->BytesRECV > SocketInfo->BytesSEND)
 			{
 				SocketInfo->DataBuf.buf = SocketInfo->Buffer + SocketInfo->BytesSEND;
-				SocketInfo->DataBuf.len = packet_size + SocketInfo->BytesSEND;
+				SocketInfo->DataBuf.len = packet_size - SocketInfo->BytesSEND;
 
 				GetSystemTime(&stStartTime);
 				if (WSASend(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &SendBytes, 0,
@@ -1282,6 +1289,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 					{
 						printf("WSASend() failed with error %d\n", WSAGetLastError());
 						FreeSocketInformation(wParam);
+						OutputDebugString("WSASend failure.");
 						return 0;
 					}
 				}
@@ -1301,7 +1309,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 
 			}
 
-			if (SocketInfo->BytesSEND == SocketInfo->BytesRECV)
+			if (SocketInfo->BytesSEND == packet_size)
 			{
 				SocketInfo->BytesSEND = 0;
 				SocketInfo->BytesRECV = 0;
@@ -1314,6 +1322,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 					SocketInfo->RecvPosted = FALSE;
 					PostMessage(hwnd, WM_SOCKET_TCP, wParam, FD_READ);
 				}
+			}
+			else
+			{
+				sprintf_s(datagram, "<<%d>>", SocketInfo->BytesSEND);
+				OutputDebugString(datagram);
+
 			}
 
 			updateStatistic(listview, avg_send_time, avg_recv_time, packets_sent,
