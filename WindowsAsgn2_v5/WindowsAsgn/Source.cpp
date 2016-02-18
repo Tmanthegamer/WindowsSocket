@@ -1027,76 +1027,24 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 					incoming_file = TRUE;
 					first_ack = TRUE;
 					count = 0;
+					sprintf_s(datagram, "[[[Init Message:%s][Size:%d]]\n", SocketInfo->DataBuf.buf, RecvBytes);
 					//PostMessage(hwnd, WM_SOCKET_TCP, wParam, FD_READ);
 				}
 				else if (incoming_file && SocketInfo->DataBuf.buf[0] == EOT)
 				{
 					incoming_file = FALSE;
 					incoming_final_message = TRUE;
+					sprintf_s(datagram, "[[[EOT][Size:%d]]\n", RecvBytes);
 				}
 				else if (incoming_file)
 				{
-					sprintf_s(datagram, "[[[strlen:%d][remaining:%d]\n[", strlen(SocketInfo->DataBuf.buf), (inc_packet_num - count));
+					sprintf_s(datagram, "[[[size:%d][remaining:%d]\n[", RecvBytes, (inc_packet_num - count));
 					OutputDebugString(datagram);
 					OutputDebugString(SocketInfo->DataBuf.buf);
 					OutputDebugString("]]]\n");
 
 					appendtofile(fileSave, SocketInfo->DataBuf.buf, strlen(SocketInfo->DataBuf.buf));
 
-				}
-
-				if (first_send && SocketInfo->BytesRECV > 0)
-				{
-					if (SocketInfo->DataBuf.buf[0] == SOT)
-					{
-						sending_file = TRUE;
-						first_send = FALSE;
-						packets_to_send = GetPacketsFromFile(file_to_send);
-						sprintf_s(current_packet, "%s", packets_to_send.front());
-						packets_to_send.erase(packets_to_send.begin());
-					}
-				}
-				else if (sending_file && SocketInfo->BytesRECV > 0)
-				{
-					if (SocketInfo->DataBuf.buf[0] == ACK)
-					{
-						memset(SocketInfo->Buffer, 0, sizeof(SocketInfo->Buffer));
-						if (packets_to_send.size() > 0)
-						{
-							sprintf_s(current_packet, "%s", packets_to_send.front());
-							packets_to_send.erase(packets_to_send.begin());
-						}
-						else
-						{
-							frequency--;
-							memset(current_packet, 0, sizeof(current_packet));
-							if (frequency <= 0)
-							{
-								for (int i = total_packets - 1; i > -1; i--)
-								{
-									free(holder[i]);
-								}
-								free(holder);
-								packets_to_send = GetPacketsFromFile(file_to_send);
-								sprintf_s(current_packet, "%s", packets_to_send.front());
-								packets_to_send.erase(packets_to_send.begin());
-							} 
-							else 
-							{
-								memset(current_packet, EOT, packet_size);
-							}
-							
-						}
-						sprintf_s(SocketInfo->Buffer, "%s", current_packet);
-					}
-					else if (SocketInfo->DataBuf.buf[0] == EOT)
-					{
-						sending_file = FALSE;
-						memset(SocketInfo->DataBuf.buf, 0, sizeof(SocketInfo->DataBuf.buf));
-						memset(current_packet, '\0', sizeof(current_packet));
-						memset(SocketInfo->Buffer, 0, sizeof(SocketInfo->Buffer));
-						PostMessage(hwnd, WM_SOCKET_TCP, wParam, FD_CLOSE);
-					}
 				}
 			}
 			total_data = total_data_recv + total_data_sent;
@@ -1134,11 +1082,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			{
 				incoming_final_message = FALSE;
 				memset(SocketInfo->Buffer, EOT, sizeof(SocketInfo->Buffer));
-			}
-			else if (sending_file)
-			{
-				memset(SocketInfo->Buffer, 0, sizeof(SocketInfo->Buffer));
-				sprintf_s(SocketInfo->Buffer, "%s", current_packet);
 			}
 
 			if (SocketInfo->BytesRECV > SocketInfo->BytesSEND)
@@ -1214,7 +1157,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 
 			break;
 		}
-
+		break;
 	case WM_CLIENT_TCP:
 		if (WSAGETSELECTERROR(lParam))
 		{
@@ -1293,7 +1236,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 						{
 							frequency--;
 							memset(current_packet, 0, sizeof(current_packet));
-							if (frequency <= 0)
+							if (frequency > 0)
 							{
 								for (int i = total_packets - 1; i > -1; i--)
 								{
