@@ -1238,7 +1238,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			packet_size = 60000;
 			break;
 		case ID_PACKETSIZE_CUSTOM:
-			DialogBox(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_ABOUT), hwnd, AboutDlgProc);
 			break;
 		case ID_FREQUENCY_1:
 			frequency = 1;
