@@ -1044,8 +1044,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			GetSystemTime(&stEndTime);
 
 			OutputDebugString(datagram);
-
-			total_data_recv += (RecvBytes / 1000);
 			
 				
 			total_recv_time += delay(stStartTime, stEndTime);
@@ -1071,11 +1069,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			{
 				count--;
 				packets_recv++;
+				
+				total_data_recv += (SocketInfo->BytesRECV / 1000);
+				
 				sprintf_s(datagram, "[[[size:%d][remaining:%d]\n[", RecvBytes, count);
 				OutputDebugString(datagram);
 				OutputDebugString(SocketInfo->DataBuf.buf);
 				OutputDebugString("]]]\n");
-				appendtofile(fileSave, SocketInfo->DataBuf.buf, strlen(SocketInfo->DataBuf.buf));
+				appendtofile(fileSave, SocketInfo->DataBuf.buf, inc_packet_size);
 			}
 			else
 			{
