@@ -624,7 +624,7 @@ std::string GetInitMessage(HANDLE file)
 }
 
 char** holder;
-
+int real_total = 0;
 std::vector<char*> GetPacketsFromFile(HANDLE file)
 {
 	char databuf[MAXBUF] = { '\0' };
@@ -652,7 +652,11 @@ std::vector<char*> GetPacketsFromFile(HANDLE file)
 	{
 		totalPackets += 1;
 	}
+	
+	if (real_total == 0)
+		real_total = totalPackets * frequency;
 	total_packets = totalPackets;
+	
 	holder = (char**)malloc(totalPackets * (packet_size + 1));
 	
 	while (count < totalPackets)
@@ -749,6 +753,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 	static BOOL temp_size = TRUE;
 	static BOOL UDP_Init = TRUE;
 	static BOOL first_send = FALSE;
+	static BOOL final_send = FALSE;
 	char datagram[MAXBUF] = { '\0' };
 	int size = 0;
 	static std::vector<char*> packets_to_send;
@@ -1289,22 +1294,27 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 						else
 						{
 							frequency--;
-							OutputDebugString("[[[Last file packet sent.]]]\n");
 							memset(current_packet, 0, sizeof(current_packet));
 							if (frequency > 0)
 							{
 								for (int i = total_packets - 1; i > -1; i--)
 								{
-									free(holder[i]);
+									if(holder[i] != NULL)
+										free(holder[i]);
 								}
 								free(holder);
 								packets_to_send = GetPacketsFromFile(file_to_send);
 								sprintf_s(current_packet, "%s", packets_to_send.front());
 								packets_to_send.erase(packets_to_send.begin());
+								OutputDebugString("[[[Restart file send.]]]\n");
 							}
 							else
 							{
+								sending_file = FALSE;
+								OutputDebugString("Sending EOT\n");
 								memset(current_packet, EOT, packet_size);
+								final_send = TRUE;
+								PostMessage(hwnd, WM_CLIENT_TCP, wParam, FD_CLOSE);
 							}
 
 						}
@@ -1315,7 +1325,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 						OutputDebugString("[[Sending EOT]]\n");
 						sending_file = FALSE;
 						memset(SocketInfo->DataBuf.buf, 0, sizeof(SocketInfo->DataBuf.buf));
-						memset(current_packet, '\0', sizeof(current_packet));
+						memset(current_packet, 0, sizeof(current_packet));
 						memset(SocketInfo->Buffer, 0, sizeof(SocketInfo->Buffer));
 						PostMessage(hwnd, WM_CLIENT_TCP, wParam, FD_CLOSE);
 					}
@@ -1345,6 +1355,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			{
 				memset(SocketInfo->Buffer, 0, sizeof(SocketInfo->Buffer));
 				sprintf_s(SocketInfo->Buffer, "%s", current_packet);
+			}
+
+			if (!sending_file && final_send) {
+				memset(SocketInfo->Buffer, 0, sizeof(SocketInfo->Buffer));
+				sprintf_s(SocketInfo->Buffer, "%s", current_packet);
+				final_send = FALSE;
 			}
 
 			if (SocketInfo->BytesRECV > SocketInfo->BytesSEND)
@@ -1449,31 +1465,34 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				
 
 				total_data_sent += (SendBytes / 1000);
-				packets_sent++;
 				total_send_time += delay(stStartTime, stEndTime);
-				avg_send_time = avg_delay(total_send_time, packets_sent);
 
 			}
 
 			if (SocketInfo->BytesSEND == packet_size)
 			{
+				
 				SocketInfo->BytesSEND = 0;
 				SocketInfo->BytesRECV = 0;
 
+				packets_sent++;
+				sprintf_s(datagram, "[total packets:%d][remaining:%d]\n", real_total, (real_total - packets_sent));
+				OutputDebugString(datagram);
+				avg_send_time = avg_delay(total_send_time, packets_sent);
 				// If a RECV occurred during our SENDs then we need to post an FD_READ
 				// notification on the socket.
 
 				if (SocketInfo->RecvPosted == TRUE)
 				{
 					SocketInfo->RecvPosted = FALSE;
-					PostMessage(hwnd, WM_SOCKET_TCP, wParam, FD_READ);
+					PostMessage(hwnd, WM_CLIENT_TCP, wParam, FD_READ);
 				}
 			}
 			else
 			{
 				sprintf_s(datagram, "<<%d>>", SocketInfo->BytesSEND);
+				PostMessage(hwnd, WM_CLIENT_TCP, wParam, FD_WRITE);
 				OutputDebugString(datagram);
-
 			}
 
 			updateStatistic(listview, avg_send_time, avg_recv_time, packets_sent,
