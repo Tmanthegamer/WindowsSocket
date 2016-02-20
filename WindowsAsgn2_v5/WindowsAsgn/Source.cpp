@@ -81,7 +81,7 @@ BOOL incoming_file = FALSE;
 BOOL incoming_final_message = FALSE;
 BOOL first_ack = FALSE;
 
-TCHAR Name[] = TEXT("The Client");
+TCHAR Name[] = TEXT("The Server");
 
 LPSOCKET_INFORMATION SocketInfoList;
 sockaddr sockAddrClient;
@@ -999,78 +999,89 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 
 			if (SocketInfo->BytesRECV != 0)
 			{
-				SocketInfo->RecvPosted = TRUE;
-				OutputDebugString("Not finished, I guess\n");
+				SocketInfo->DataBuf.buf = SocketInfo->Buffer + SocketInfo->BytesRECV;
+				SocketInfo->DataBuf.len = DATA_BUFSIZE - SocketInfo->BytesRECV;
 			}
 			else
 			{
 				SocketInfo->DataBuf.buf = SocketInfo->Buffer;
 				SocketInfo->DataBuf.len = DATA_BUFSIZE;
+			}
 
-				Flags = 0;
-				GetSystemTime(&stStartTime);
-				if (WSARecv(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &RecvBytes,
-					&Flags, NULL, NULL) == SOCKET_ERROR)
+			Flags = 0;
+			GetSystemTime(&stStartTime);
+			if (WSARecv(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &RecvBytes,
+				&Flags, NULL, NULL) == SOCKET_ERROR)
+			{
+				int err = WSAGetLastError();
+				if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
+					NULL,
+					err,
+					0,
+					datagram,
+					0,
+					NULL) != 0)
 				{
-					int err = WSAGetLastError();
-					if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
-						NULL,
-						err,
-						0,
-						datagram,
-						0,
-						NULL) != 0)
-					{
-						OutputDebugString("{{WMSOCKETTCP:RECV:");
-						OutputDebugString(datagram);
-						OutputDebugString("}}\n");
-					}
-
-					if (WSAGetLastError() != WSAEWOULDBLOCK)
-					{
-						printf("WSASend() failed with error %d\n", WSAGetLastError());
-						FreeSocketInformation(wParam);
-						OutputDebugString("WSASend failure.");
-						return 0;
-					}
+					OutputDebugString("{{WMSOCKETTCP:RECV:");
+					OutputDebugString(datagram);
+					OutputDebugString("}}\n");
 				}
-				else // No error so update the byte count
+
+				if (WSAGetLastError() != WSAEWOULDBLOCK)
 				{
-					SocketInfo->BytesRECV = RecvBytes;
+					printf("WSASend() failed with error %d\n", WSAGetLastError());
+					FreeSocketInformation(wParam);
+					OutputDebugString("WSASend failure.");
+					return 0;
 				}
-				GetSystemTime(&stEndTime);
+			}
+			else // No error so update the byte count
+			{
+				SocketInfo->BytesRECV += RecvBytes;
+				
+			}
+			sprintf_s(datagram, "[[[Received:%d]]][total:%d]", RecvBytes, SocketInfo->BytesRECV);
+			GetSystemTime(&stEndTime);
 
-				total_data_recv += (RecvBytes / 1000);
+			OutputDebugString(datagram);
+			
+				
+			total_recv_time += delay(stStartTime, stEndTime);
+			avg_recv_time = avg_delay(total_send_time, packets_sent);
+
+			if (!incoming_file && sscanf_s(SocketInfo->DataBuf.buf, "size: %d num: %d", &inc_packet_size, &inc_packet_num) == 2)
+			{
+				incoming_file = TRUE;
+				first_ack = TRUE;
+				count = inc_packet_num;
+
+				sprintf_s(datagram, "[[[Init Message:%s][Size:%d]]\n", SocketInfo->DataBuf.buf, RecvBytes);
+				OutputDebugString(datagram);
+				//PostMessage(hwnd, WM_SOCKET_TCP, wParam, FD_READ);
+			}
+			else if (incoming_file && SocketInfo->DataBuf.buf[0] == EOT)
+			{
+				incoming_final_message = TRUE;
+				incoming_file = FALSE;
+				sprintf_s(datagram, "[[[EOT][Size:%d]]\n", RecvBytes);
+			}
+			else if (incoming_file &&  SocketInfo->BytesRECV == inc_packet_size)
+			{
+				count--;
 				packets_recv++;
-				count++;
-				total_recv_time += delay(stStartTime, stEndTime);
-				avg_recv_time = avg_delay(total_send_time, packets_sent);
-
-				if (!incoming_file && sscanf_s(SocketInfo->DataBuf.buf, "size: %d num: %d", &inc_packet_size, &inc_packet_num) == 2)
-				{
-					incoming_file = TRUE;
-					first_ack = TRUE;
-					count = 0;
-					sprintf_s(datagram, "[[[Init Message:%s][Size:%d]]\n", SocketInfo->DataBuf.buf, RecvBytes);
-					OutputDebugString(datagram);
-					//PostMessage(hwnd, WM_SOCKET_TCP, wParam, FD_READ);
-				}
-				else if (incoming_file && SocketInfo->DataBuf.buf[0] == EOT)
-				{
-					incoming_file = FALSE;
-					incoming_final_message = TRUE;
-					sprintf_s(datagram, "[[[EOT][Size:%d]]\n", RecvBytes);
-				}
-				else if (incoming_file)
-				{
-					sprintf_s(datagram, "[[[size:%d][remaining:%d]\n[", RecvBytes, (inc_packet_num - count));
-					OutputDebugString(datagram);
-					OutputDebugString(SocketInfo->DataBuf.buf);
-					OutputDebugString("]]]\n");
-
-					appendtofile(fileSave, SocketInfo->DataBuf.buf, strlen(SocketInfo->DataBuf.buf));
-
-				}
+				
+				total_data_recv += (SocketInfo->BytesRECV / 1000);
+				
+				sprintf_s(datagram, "[[[size:%d][remaining:%d]\n[", RecvBytes, count);
+				OutputDebugString(datagram);
+				OutputDebugString(SocketInfo->DataBuf.buf);
+				OutputDebugString("]]]\n");
+				appendtofile(fileSave, SocketInfo->DataBuf.buf, inc_packet_size);
+			}
+			else
+			{
+				OutputDebugString("Haven't received full data.");
+				break;
 			}
 			total_data = total_data_recv + total_data_sent;
 			avg_time = avg_delay(total_recv_time + total_send_time, packets_sent + packets_recv);
@@ -1087,20 +1098,26 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				OutputDebugString("Socket Info is null\n");
 				break;
 			}
-
-			if (incoming_file && SocketInfo->BytesRECV > SocketInfo->BytesSEND)
+			memset(SocketInfo->Buffer, 0, sizeof(SocketInfo->Buffer));
+			if (incoming_file)
 			{
-				if (first_ack)
+				if (first_ack && SocketInfo->BytesRECV > SocketInfo->BytesSEND)
 				{
 					memset(SocketInfo->Buffer, SOT, sizeof(SocketInfo->Buffer));
 				}
 				else if (incoming_final_message)
 				{
 					memset(SocketInfo->Buffer, EOT, sizeof(SocketInfo->Buffer));
+					incoming_file = FALSE;
+					incoming_final_message = FALSE;
+				}
+				else if(SocketInfo->BytesRECV == inc_packet_size)
+				{
+					memset(SocketInfo->Buffer, ACK, sizeof(SocketInfo->Buffer));
 				}
 				else 
 				{
-					memset(SocketInfo->Buffer, ACK, sizeof(SocketInfo->Buffer));
+					OutputDebugString("Hasn't read all of the data yet.\n");
 				}
 				SocketInfo->DataBuf.buf = SocketInfo->Buffer + SocketInfo->BytesSEND;
 				SocketInfo->DataBuf.len = 5;
@@ -1109,6 +1126,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				if (WSASend(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &SendBytes, 0,
 					NULL, NULL) == SOCKET_ERROR)
 				{
+					OutputDebugString("Bad send.");
 					int err = WSAGetLastError();
 					if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
 						NULL,
@@ -1133,11 +1151,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				else // No error so update the byte count
 				{
 					SocketInfo->BytesSEND += SendBytes;
+					OutputDebugString("Good send.");
 				}
 				GetSystemTime(&stEndTime);
 
 				total_data_sent += (SendBytes / 1000);
-				packets_sent++;
+				
 				total_send_time += delay(stStartTime, stEndTime);
 				avg_send_time = avg_delay(total_send_time, packets_sent);
 
@@ -1147,6 +1166,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			{
 				SocketInfo->BytesSEND = 0;
 				SocketInfo->BytesRECV = 0;
+				if(SocketInfo->DataBuf.buf[0] != EOT)
+					packets_sent++;
 
 				if (first_ack)
 				{
@@ -1327,7 +1348,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			SocketInfo = GetSocketInformation(wParam);
 			if (SocketInfo == NULL || (sending_file && incoming_file))
 			{
-				OutputDebugString("Socket info is null\n");
+				OutputDebugString("Invalid socket info\n");
 				break;
 			}
 
@@ -1354,6 +1375,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 					NULL, NULL) == SOCKET_ERROR)
 				{
 					int err = WSAGetLastError();
+
 					switch (err)
 					{
 					case WSAECONNABORTED:
@@ -1427,11 +1449,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 					}
 					
 					if (WSAGetLastError() != WSAEWOULDBLOCK)
+
 					{
-						printf("WSASend() failed with error %d\n", WSAGetLastError());
-						FreeSocketInformation(wParam);
-						OutputDebugString("WSASend failure.");
-						return 0;
+						OutputDebugString("{{");
+						OutputDebugString(datagram);
+						OutputDebugString("}}\n");
 					}
 				}
 				else // No error so update the byte count
