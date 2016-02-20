@@ -1082,9 +1082,23 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				if (WSASend(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &SendBytes, 0,
 					NULL, NULL) == SOCKET_ERROR)
 				{
-					if (WSAGetLastError() != WSAEWOULDBLOCK)
+					int err = WSAGetLastError();
+					if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
+						NULL,
+						err,
+						0,
+						datagram,
+						0,
+						NULL) != 0)
 					{
-						printf("WSASend() failed with error %d\n", WSAGetLastError());
+						OutputDebugString("{{");
+						OutputDebugString(datagram);
+						OutputDebugString("}}\n");
+					}
+
+					if (err != WSAEWOULDBLOCK)
+					{
+						OutputDebugString("WSASend() failed\n");
 						FreeSocketInformation(wParam);
 						return 0;
 					}
@@ -1163,7 +1177,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			{
 				SocketInfo->RecvPosted = TRUE;
 				OutputDebugString("Shit happened");
-				return 0;
 			}
 			else
 			{
@@ -1247,7 +1260,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 						memset(SocketInfo->DataBuf.buf, 0, sizeof(SocketInfo->DataBuf.buf));
 						memset(current_packet, '\0', sizeof(current_packet));
 						memset(SocketInfo->Buffer, 0, sizeof(SocketInfo->Buffer));
-						PostMessage(hwnd, WM_SOCKET_TCP, wParam, FD_CLOSE);
+						PostMessage(hwnd, WM_CLIENT_TCP, wParam, FD_CLOSE);
 					}
 				}
 			}
@@ -1299,8 +1312,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				}
 				GetSystemTime(&stEndTime);
 
-				sprintf_s(datagram, "Message:[[[strlen:%d]\n[", strlen(SocketInfo->DataBuf.buf));
+				sprintf_s(datagram, "Message:[[[SendBytes:%d][PacketSize:%d\n[", SendBytes, packet_size);
 				OutputDebugString(datagram);
+				
 
 				total_data_sent += (SendBytes / 1000);
 				packets_sent++;
