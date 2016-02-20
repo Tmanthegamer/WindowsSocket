@@ -81,7 +81,7 @@ BOOL incoming_file = FALSE;
 BOOL incoming_final_message = FALSE;
 BOOL first_ack = FALSE;
 
-TCHAR Name[] = TEXT("The Client");
+TCHAR Name[] = TEXT("The Server");
 
 LPSOCKET_INFORMATION SocketInfoList;
 sockaddr sockAddrClient;
