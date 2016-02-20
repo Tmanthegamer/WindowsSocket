@@ -990,7 +990,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			if (SocketInfo->BytesRECV != 0)
 			{
 				SocketInfo->RecvPosted = TRUE;
-				return 0;
+				OutputDebugString("Shit happened");
 			}
 			else
 			{
@@ -1026,7 +1026,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 					incoming_file = TRUE;
 					first_ack = TRUE;
 					count = 0;
-					sprintf_s(datagram, "[[[Init Message:%s][Size:%d]]\n", SocketInfo->DataBuf.buf, RecvBytes);
+					sprintf_s(datagram, "Message:[[[RecvBytes:%d]\n[", RecvBytes);
+				OutputDebugString(datagram);
 					//PostMessage(hwnd, WM_SOCKET_TCP, wParam, FD_READ);
 				}
 				else if (incoming_file && SocketInfo->DataBuf.buf[0] == EOT)
@@ -1082,6 +1083,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				if (WSASend(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &SendBytes, 0,
 					NULL, NULL) == SOCKET_ERROR)
 				{
+					OutputDebugString("Bad send.");
 					int err = WSAGetLastError();
 					if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
 						NULL,
@@ -1106,6 +1108,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				else // No error so update the byte count
 				{
 					SocketInfo->BytesSEND += SendBytes;
+					OutputDebugString("Good send.");
 				}
 				GetSystemTime(&stEndTime);
 
@@ -1280,6 +1283,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			SocketInfo = GetSocketInformation(wParam);
 			if (SocketInfo == NULL || (sending_file && incoming_file))
 			{
+				OutputDebugString("Invalid socket info\n");
 				break;
 			}
 
@@ -1298,12 +1302,18 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				if (WSASend(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &SendBytes, 0,
 					NULL, NULL) == SOCKET_ERROR)
 				{
-					if (WSAGetLastError() != WSAEWOULDBLOCK)
+					int err = WSAGetLastError();
+					if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
+						NULL,
+						err,
+						0,
+						datagram,
+						0,
+						NULL) != 0)
 					{
-						printf("WSASend() failed with error %d\n", WSAGetLastError());
-						FreeSocketInformation(wParam);
-						OutputDebugString("WSASend failure.");
-						return 0;
+						OutputDebugString("{{");
+						OutputDebugString(datagram);
+						OutputDebugString("}}\n");
 					}
 				}
 				else // No error so update the byte count
