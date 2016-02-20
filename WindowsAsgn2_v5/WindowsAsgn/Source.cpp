@@ -777,7 +777,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 	case WM_SOCKET_UDP:
 		if (WSAGETSELECTERROR(lParam))
 		{
-			printf("Socket failed with error %d\n", WSAGETSELECTERROR(lParam));
+			sprintf_s(datagram, "Socket failed with error %d\n", WSAGETSELECTERROR(lParam));
+			OutputDebugString(datagram);
 			FreeSocketInformation(wParam);
 			break;
 		}
@@ -798,6 +799,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 
 			if (SocketInfo == NULL)
 			{
+				OutputDebugString("Socket info is null in UDP read.\n");
 				break;
 			}
 
@@ -853,6 +855,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 
 			if (SocketInfo == NULL)
 			{
+				OutputDebugString("Socket info is null in UDP read.\n");
 				break;
 			}
 
@@ -953,7 +956,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 	case WM_SOCKET_TCP:
 		if (WSAGETSELECTERROR(lParam))
 		{
-			printf("Socket failed with error %d\n", WSAGETSELECTERROR(lParam));
+			sprintf_s(datagram, "Socket failed with error %d\n", WSAGETSELECTERROR(lParam));
+			OutputDebugString(datagram);
 			FreeSocketInformation(wParam);
 			break;
 		}
@@ -982,6 +986,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 
 			if (SocketInfo == NULL)
 			{
+				OutputDebugString("Socketinfo is null in SOCKET_TCP\n");
 				break;
 			}
 
@@ -989,63 +994,88 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 
 			if (SocketInfo->BytesRECV != 0)
 			{
-				SocketInfo->RecvPosted = TRUE;
-				OutputDebugString("Shit happened");
+				SocketInfo->DataBuf.buf = SocketInfo->Buffer + SocketInfo->BytesRECV;
+				SocketInfo->DataBuf.len = DATA_BUFSIZE - SocketInfo->BytesRECV;
 			}
 			else
 			{
 				SocketInfo->DataBuf.buf = SocketInfo->Buffer;
 				SocketInfo->DataBuf.len = DATA_BUFSIZE;
+			}
 
-				Flags = 0;
-				GetSystemTime(&stStartTime);
-				if (WSARecv(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &RecvBytes,
-					&Flags, NULL, NULL) == SOCKET_ERROR)
+			Flags = 0;
+			GetSystemTime(&stStartTime);
+			if (WSARecv(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &RecvBytes,
+				&Flags, NULL, NULL) == SOCKET_ERROR)
+			{
+				int err = WSAGetLastError();
+				if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
+					NULL,
+					err,
+					0,
+					datagram,
+					0,
+					NULL) != 0)
 				{
-					if (WSAGetLastError() != WSAEWOULDBLOCK)
-					{
-						printf("WSARecv() failed with error %d\n", WSAGetLastError());
-						FreeSocketInformation(wParam);
-						return 0;
-					}
-				}
-				else // No error so update the byte count
-				{
-					SocketInfo->BytesRECV = RecvBytes;
-				}
-				GetSystemTime(&stEndTime);
-
-				total_data_recv += (RecvBytes / 1000);
-				packets_recv++;
-				count++;
-				total_recv_time += delay(stStartTime, stEndTime);
-				avg_recv_time = avg_delay(total_send_time, packets_sent);
-
-				if (!incoming_file && sscanf_s(SocketInfo->DataBuf.buf, "size: %d num: %d", &inc_packet_size, &inc_packet_num) == 2)
-				{
-					incoming_file = TRUE;
-					first_ack = TRUE;
-					count = 0;
-					sprintf_s(datagram, "Message:[[[RecvBytes:%d]\n[", RecvBytes);
-				OutputDebugString(datagram);
-					//PostMessage(hwnd, WM_SOCKET_TCP, wParam, FD_READ);
-				}
-				else if (incoming_file && SocketInfo->DataBuf.buf[0] == EOT)
-				{
-					incoming_file = FALSE;
-					incoming_final_message = TRUE;
-					sprintf_s(datagram, "[[[EOT][Size:%d]]\n", RecvBytes);
-				}
-				else if (incoming_file)
-				{
-					sprintf_s(datagram, "[[[size:%d][remaining:%d]\n[", RecvBytes, (inc_packet_num - count));
+					OutputDebugString("{{WMSOCKETTCP:RECV:");
 					OutputDebugString(datagram);
-					OutputDebugString(SocketInfo->DataBuf.buf);
-					OutputDebugString("]]]\n");
-
-					appendtofile(fileSave, SocketInfo->DataBuf.buf, strlen(SocketInfo->DataBuf.buf));
-
+					OutputDebugString("}}\n");
 				}
+
+				if (WSAGetLastError() != WSAEWOULDBLOCK)
+				{
+					printf("WSASend() failed with error %d\n", WSAGetLastError());
+					FreeSocketInformation(wParam);
+					OutputDebugString("WSASend failure.");
+					return 0;
+				}
+			}
+			else // No error so update the byte count
+			{
+				SocketInfo->BytesRECV += RecvBytes;
+				
+			}
+			sprintf_s(datagram, "[[[Received:%d]]][total:%d]", RecvBytes, SocketInfo->BytesRECV);
+			GetSystemTime(&stEndTime);
+
+			OutputDebugString(datagram);
+
+			total_data_recv += (RecvBytes / 1000);
+			
+				
+			total_recv_time += delay(stStartTime, stEndTime);
+			avg_recv_time = avg_delay(total_send_time, packets_sent);
+
+			if (!incoming_file && sscanf_s(SocketInfo->DataBuf.buf, "size: %d num: %d", &inc_packet_size, &inc_packet_num) == 2)
+			{
+				incoming_file = TRUE;
+				first_ack = TRUE;
+				count = inc_packet_num;
+
+				sprintf_s(datagram, "[[[Init Message:%s][Size:%d]]\n", SocketInfo->DataBuf.buf, RecvBytes);
+				OutputDebugString(datagram);
+				//PostMessage(hwnd, WM_SOCKET_TCP, wParam, FD_READ);
+			}
+			else if (incoming_file && SocketInfo->DataBuf.buf[0] == EOT)
+			{
+				incoming_final_message = TRUE;
+				incoming_file = FALSE;
+				sprintf_s(datagram, "[[[EOT][Size:%d]]\n", RecvBytes);
+			}
+			else if (incoming_file &&  SocketInfo->BytesRECV == inc_packet_size)
+			{
+				count--;
+				packets_recv++;
+				sprintf_s(datagram, "[[[size:%d][remaining:%d]\n[", RecvBytes, count);
+				OutputDebugString(datagram);
+				OutputDebugString(SocketInfo->DataBuf.buf);
+				OutputDebugString("]]]\n");
+				appendtofile(fileSave, SocketInfo->DataBuf.buf, strlen(SocketInfo->DataBuf.buf));
+			}
+			else
+			{
+				OutputDebugString("Haven't received full data.");
+				break;
 			}
 			total_data = total_data_recv + total_data_sent;
 			avg_time = avg_delay(total_recv_time + total_send_time, packets_sent + packets_recv);
@@ -1059,22 +1089,29 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			SocketInfo = GetSocketInformation(wParam);
 			if (SocketInfo == NULL || (sending_file && incoming_file))
 			{
+				OutputDebugString("Socket Info is null\n");
 				break;
 			}
-
-			if (incoming_file && SocketInfo->BytesRECV > SocketInfo->BytesSEND)
+			memset(SocketInfo->Buffer, 0, sizeof(SocketInfo->Buffer));
+			if (incoming_file)
 			{
-				if (first_ack)
+				if (first_ack && SocketInfo->BytesRECV > SocketInfo->BytesSEND)
 				{
 					memset(SocketInfo->Buffer, SOT, sizeof(SocketInfo->Buffer));
 				}
 				else if (incoming_final_message)
 				{
 					memset(SocketInfo->Buffer, EOT, sizeof(SocketInfo->Buffer));
+					incoming_file = FALSE;
+					incoming_final_message = FALSE;
+				}
+				else if(SocketInfo->BytesRECV == inc_packet_size)
+				{
+					memset(SocketInfo->Buffer, ACK, sizeof(SocketInfo->Buffer));
 				}
 				else 
 				{
-					memset(SocketInfo->Buffer, ACK, sizeof(SocketInfo->Buffer));
+					OutputDebugString("Hasn't read all of the data yet.\n");
 				}
 				SocketInfo->DataBuf.buf = SocketInfo->Buffer + SocketInfo->BytesSEND;
 				SocketInfo->DataBuf.len = 5;
@@ -1093,7 +1130,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 						0,
 						NULL) != 0)
 					{
-						OutputDebugString("{{");
+						OutputDebugString("{{WMSOCKETTCP:SEND:");
 						OutputDebugString(datagram);
 						OutputDebugString("}}\n");
 					}
@@ -1113,7 +1150,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				GetSystemTime(&stEndTime);
 
 				total_data_sent += (SendBytes / 1000);
-				packets_sent++;
+				
 				total_send_time += delay(stStartTime, stEndTime);
 				avg_send_time = avg_delay(total_send_time, packets_sent);
 
@@ -1123,6 +1160,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			{
 				SocketInfo->BytesSEND = 0;
 				SocketInfo->BytesRECV = 0;
+				if(SocketInfo->DataBuf.buf[0] != EOT)
+					packets_sent++;
 
 				if (first_ack)
 				{
@@ -1171,6 +1210,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 
 			if (SocketInfo == NULL)
 			{
+				OutputDebugString("Socket info is null in CLIENT_TCP\n");
 				break;
 			}
 
@@ -1191,11 +1231,25 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				if (WSARecv(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &RecvBytes,
 					&Flags, NULL, NULL) == SOCKET_ERROR)
 				{
+					int err = WSAGetLastError();
+					if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
+						NULL,
+						err,
+						0,
+						datagram,
+						0,
+						NULL) != 0)
+					{
+						OutputDebugString("{{WM_CLIENT_TCP:recv:");
+						OutputDebugString(datagram);
+						OutputDebugString("}}\n");
+					}
+
 					if (WSAGetLastError() != WSAEWOULDBLOCK)
 					{
-						printf("WSARecv() failed with error %d\n", WSAGetLastError());
+						printf("WSASend() failed with error %d\n", WSAGetLastError());
 						FreeSocketInformation(wParam);
-						OutputDebugString("WSARecv() failure.\n");
+						OutputDebugString("WSASend failure.");
 						return 0;
 					}
 				}
@@ -1303,13 +1357,81 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 					NULL, NULL) == SOCKET_ERROR)
 				{
 					int err = WSAGetLastError();
-					if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
-						NULL,
-						err,
-						0,
-						datagram,
-						0,
-						NULL) != 0)
+
+					switch (err)
+					{
+					case WSAECONNABORTED:
+						OutputDebugString("WSAECONNABORTED");
+						break;
+					case WSAECONNRESET:
+						OutputDebugString("WSAECONNRESET");
+						break;
+					case WSAEFAULT:
+						OutputDebugString("WSAEFAULT");
+						break;
+					case WSA_OPERATION_ABORTED:
+						OutputDebugString("WSA_OPERATION_ABORTED");
+						break;
+					case WSAEINTR:
+						OutputDebugString("WSAEINTR");
+						break;
+					case WSAEINPROGRESS:
+						OutputDebugString("WSAEINPROGRESS");
+						break;
+					case WSAEINVAL:
+						OutputDebugString("WSAEINVAL");
+						break;
+					case WSAEMSGSIZE:
+						OutputDebugString("WSAEMSGSIZE");
+						break;
+					case WSAENETDOWN:
+						OutputDebugString("WSAENETDOWN");
+						break;
+					case WSAENETRESET:
+						OutputDebugString("WSAENETRESET");
+						break;
+					case WSAENOBUFS:
+						OutputDebugString("WSAENOBUFS");
+						break;
+					case WSAENOTCONN:
+						OutputDebugString("WSAENOTCONN");
+						break;
+					case WSAENOTSOCK:
+						OutputDebugString("WSAENOTSOCK");
+						break;
+					case WSAEOPNOTSUPP:
+						OutputDebugString("WSAEOPNOTSUPP");
+						break;
+					case WSAEALREADY:
+						OutputDebugString("jk");
+						break;
+					case WSAESHUTDOWN:
+						OutputDebugString("WSAESHUTDOWN");
+						break;
+					case WSAEWOULDBLOCK:
+						OutputDebugString("WSAEWOULDBLOCK");
+						PostMessage(hwnd, Message, wParam, FD_WRITE);
+						break;
+					case WSANOTINITIALISED:
+						OutputDebugString("WSANOTINITIALISED");
+						break;
+					case WSAEPROTOTYPE:
+						OutputDebugString("WSAEPROTOTYPE");
+						break;
+					case WSAENOPROTOOPT:
+						OutputDebugString("WSAENOPROTOOPT");
+						break;
+					case WSAEPROTONOSUPPORT:
+						OutputDebugString("WSAEPROTONOSUPPORT");
+						break;
+					case WSA_IO_PENDING:
+						OutputDebugString("WSA_IO_PENDING");
+						break;
+
+					}
+					
+					if (WSAGetLastError() != WSAEWOULDBLOCK)
+
 					{
 						OutputDebugString("{{");
 						OutputDebugString(datagram);
