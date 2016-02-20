@@ -1345,6 +1345,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 
 			if (SocketInfo->BytesRECV > SocketInfo->BytesSEND)
 			{
+				
 				SocketInfo->DataBuf.buf = SocketInfo->Buffer + SocketInfo->BytesSEND;
 				SocketInfo->DataBuf.len = packet_size - SocketInfo->BytesSEND;
 
@@ -1443,14 +1444,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				OutputDebugString(datagram);
 				
 
-				total_data_sent += (SendBytes / 1000);
+				
 				total_send_time += delay(stStartTime, stEndTime);
 
 			}
 
 			if (SocketInfo->BytesSEND == packet_size)
 			{
-				
+				total_data_sent += (SocketInfo->BytesSEND / 1000);
 				SocketInfo->BytesSEND = 0;
 				SocketInfo->BytesRECV = 0;
 
