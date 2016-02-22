@@ -48,7 +48,7 @@ the Windows Procedure which will handle all windows events.
 
 #pragma comment(lib, "Mswsock.lib")
 
-HWND hwnd, inputHost, inputPort, combobox, convertBtn, clearBtn, inputGroupBox, listGroupBox, listview;
+HWND hwnd, inputHost, inputPort, combobox, convertBtn, clearBtn, inputGroupBox, listGroupBox, listview, inputFreq;
 HANDLE file_to_send = INVALID_HANDLE_VALUE, fileSave = INVALID_HANDLE_VALUE;
 HMENU input_id = (HMENU)50;
 HMENU ID = (HMENU)100;
@@ -675,14 +675,14 @@ void CreateInputText(HWND hwnd)
 	/* Container for the ComboBox drop down list. */
 	listGroupBox = CreateWindow(TEXT("BUTTON"), TEXT("Enter Port Number"),
 		WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
-		295, 10, 260, 50,
+		295, 5, 260, 50,
 		hwnd,
 		(HMENU)-1,
 		hInst,
 		NULL);
 
 	/* Input Text field. */
-	inputHost = CreateWindow(TEXT("EDIT"), TEXT("192.168.0.2"),
+	inputHost = CreateWindow(TEXT("EDIT"), TEXT("192.168.0.17"),
 		WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL,
 		10, 30, 250, 20,
 		hwnd,
@@ -699,9 +699,25 @@ void CreateInputText(HWND hwnd)
 		hInst,
 		NULL);
 
+	HANDLE freqGroupBox = CreateWindow(TEXT("BUTTON"), TEXT("Enter Frequency"),
+		WS_CHILD | WS_VISIBLE | BS_GROUPBOX | WS_EX_TRANSPARENT,
+		145, 55, 260, 50,
+		hwnd,
+		(HMENU)-1,
+		hInst,
+		NULL);
+	
+	inputFreq = CreateWindow(TEXT("EDIT"), TEXT(""),
+		WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL,
+		150, 75, 250, 20,
+		hwnd,
+		(HMENU)IDD_EDIT_TEXT,
+		hInst,
+		NULL);
+
 	inputGroupBox = CreateWindow(TEXT("BUTTON"), TEXT("Enter IP Address"),
 		WS_CHILD | WS_VISIBLE | BS_GROUPBOX | WS_EX_TRANSPARENT,
-		5, 10, 260, 50,
+		5, 5, 260, 50,
 		hwnd,
 		(HMENU)-1,
 		hInst,
@@ -799,12 +815,79 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				&Flags, NULL, NULL, NULL, NULL) == SOCKET_ERROR)
 			{
 				int err = WSAGetLastError();
-				if (err != WSAEWOULDBLOCK)
+
+				switch (err)
 				{
-					OutputDebugString("WSARecvFrom: Error WSAEWOULDBLOCK.\n");
-					/*printf("WSARecv() failed with error %d\n", WSAGetLastError());
-					FreeSocketInformation(wParam);
-					return 0;*/
+				case WSAEACCES:
+					OutputDebugString("WSAEACCES");
+					break;
+				case WSAEADDRNOTAVAIL:
+					OutputDebugString("WSAEADDRNOTAVAIL");
+					break;
+				case WSAEAFNOSUPPORT:
+					OutputDebugString("WSAEAFNOSUPPORT");
+					break;
+				case WSAECONNRESET:
+					OutputDebugString("WSAECONNRESET");
+					break;
+				case WSAEDESTADDRREQ:
+					OutputDebugString("WSAEDESTADDRREQ");
+					break;
+				case WSAEFAULT:
+					OutputDebugString("WSAEFAULT");
+					break;
+				case WSAEHOSTUNREACH:
+					OutputDebugString("WSAEHOSTUNREACH");
+					break;
+				case WSAEINPROGRESS:
+					OutputDebugString("WSAEINPROGRESS");
+					break;
+				case WSAEINTR:
+					OutputDebugString("WSAEINTR");
+					break;
+				case WSAEINVAL:
+					OutputDebugString("WSAEINVAL");
+					break;
+				case WSAEMSGSIZE:
+					OutputDebugString("WSAEMSGSIZE");
+					break;
+				case WSAENETDOWN:
+					OutputDebugString("WSAENETDOWN");
+					break;
+				case WSAENOTSOCK:
+					OutputDebugString("WSAENOTSOCK");
+					break;
+				case WSAEOPNOTSUPP:
+					OutputDebugString("WSAEOPNOTSUPP");
+					break;
+				case WSAEALREADY:
+					OutputDebugString("jk");
+					break;
+				case WSAESHUTDOWN:
+					OutputDebugString("WSAESHUTDOWN");
+					break;
+				case WSAEWOULDBLOCK:
+					OutputDebugString("WSAEWOULDBLOCK");
+					PostMessage(hwnd, Message, wParam, FD_WRITE);
+					break;
+				case WSANOTINITIALISED:
+					OutputDebugString("WSANOTINITIALISED");
+					break;
+				case WSAEPROTOTYPE:
+					OutputDebugString("WSAEPROTOTYPE");
+					break;
+				case WSAENOPROTOOPT:
+					OutputDebugString("WSAENOPROTOOPT");
+					break;
+				case WSAEPROTONOSUPPORT:
+					OutputDebugString("WSAEPROTONOSUPPORT");
+					break;
+				case WSA_IO_PENDING:
+					OutputDebugString("WSA_IO_PENDING");
+					break;
+				default:
+					OutputDebugString("lol i dunno what error in WSASendTo\n");
+					break;
 				}
 			}
 			GetSystemTime(&stEndTime);
@@ -837,7 +920,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 
 			if (SocketInfo == NULL)
 			{
-				OutputDebugString("Socket info is null in UDP read.\n");
+				OutputDebugString("Socket info is null in UDP write.\n");
 				break;
 			}
 
@@ -931,13 +1014,16 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				case WSA_IO_PENDING:
 					OutputDebugString("WSA_IO_PENDING");
 					break;
-
+				default:
+					OutputDebugString("lol i dunno what error in WSASendTo\n");
+					break;
 				}
 			}
+			
 			GetSystemTime(&stEndTime);
 
-			sprintf_s(current_packet, "%d ", SocketInfo->DataBuf.len);
-			OutputDebugString(current_packet);
+			sprintf_s(datagram, "%d ", SendBytes);
+			OutputDebugString(datagram);
 
 			packets_sent++;
 			total_data_sent += (SocketInfo->DataBuf.len / 1000);
@@ -1059,25 +1145,79 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 				&Flags, NULL, NULL) == SOCKET_ERROR)
 			{
 				int err = WSAGetLastError();
-				if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
-					NULL,
-					err,
-					0,
-					datagram,
-					0,
-					NULL) != 0)
-				{
-					OutputDebugString("{{WMSOCKETTCP:RECV:");
-					OutputDebugString(datagram);
-					OutputDebugString("}}\n");
-				}
 
-				if (WSAGetLastError() != WSAEWOULDBLOCK)
+				switch (err)
 				{
-					printf("WSASend() failed with error %d\n", WSAGetLastError());
-					FreeSocketInformation(wParam);
-					OutputDebugString("WSASend failure.");
-					return 0;
+				case WSAEACCES:
+					OutputDebugString("WSAEACCES");
+					break;
+				case WSAEADDRNOTAVAIL:
+					OutputDebugString("WSAEADDRNOTAVAIL");
+					break;
+				case WSAEAFNOSUPPORT:
+					OutputDebugString("WSAEAFNOSUPPORT");
+					break;
+				case WSAECONNRESET:
+					OutputDebugString("WSAECONNRESET");
+					break;
+				case WSAEDESTADDRREQ:
+					OutputDebugString("WSAEDESTADDRREQ");
+					break;
+				case WSAEFAULT:
+					OutputDebugString("WSAEFAULT");
+					break;
+				case WSAEHOSTUNREACH:
+					OutputDebugString("WSAEHOSTUNREACH");
+					break;
+				case WSAEINPROGRESS:
+					OutputDebugString("WSAEINPROGRESS");
+					break;
+				case WSAEINTR:
+					OutputDebugString("WSAEINTR");
+					break;
+				case WSAEINVAL:
+					OutputDebugString("WSAEINVAL");
+					break;
+				case WSAEMSGSIZE:
+					OutputDebugString("WSAEMSGSIZE");
+					break;
+				case WSAENETDOWN:
+					OutputDebugString("WSAENETDOWN");
+					break;
+				case WSAENOTSOCK:
+					OutputDebugString("WSAENOTSOCK");
+					break;
+				case WSAEOPNOTSUPP:
+					OutputDebugString("WSAEOPNOTSUPP");
+					break;
+				case WSAEALREADY:
+					OutputDebugString("jk");
+					break;
+				case WSAESHUTDOWN:
+					OutputDebugString("WSAESHUTDOWN");
+					break;
+				case WSAEWOULDBLOCK:
+					OutputDebugString("WSAEWOULDBLOCK");
+					PostMessage(hwnd, Message, wParam, FD_WRITE);
+					break;
+				case WSANOTINITIALISED:
+					OutputDebugString("WSANOTINITIALISED");
+					break;
+				case WSAEPROTOTYPE:
+					OutputDebugString("WSAEPROTOTYPE");
+					break;
+				case WSAENOPROTOOPT:
+					OutputDebugString("WSAENOPROTOOPT");
+					break;
+				case WSAEPROTONOSUPPORT:
+					OutputDebugString("WSAEPROTONOSUPPORT");
+					break;
+				case WSA_IO_PENDING:
+					OutputDebugString("WSA_IO_PENDING");
+					break;
+				default:
+					OutputDebugString("lol i dunno what error in WSASendTo\n");
+					break;
 				}
 			}
 			else // No error so update the byte count
@@ -1674,6 +1814,18 @@ void GetTextFromHost() {
 	TCHAR* buffer = new char[len + 1];
 	SendMessage(inputHost, WM_GETTEXT, (WPARAM)len + 1, (LPARAM)buffer);
 	strncpy_s(ip_text, buffer, sizeof(ip_text));
+}
+//inputFreq
+
+void GetTextFromFreq() {
+	int len = SendMessage(inputFreq, WM_GETTEXTLENGTH, 0, 0);
+	TCHAR* buffer = new char[len + 1];
+	SendMessage(inputHost, WM_GETTEXT, (WPARAM)len + 1, (LPARAM)buffer);
+	
+	if (sscanf_s(buffer, "%d", &len) == 1)
+	{
+		frequency = len;
+	}
 }
 
 void GetTextFromPort() {

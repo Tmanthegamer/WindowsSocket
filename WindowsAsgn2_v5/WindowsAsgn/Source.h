@@ -82,7 +82,7 @@ void GetTextFromPort();
 void CreateSocketInformation(SOCKET s);
 LPSOCKET_INFORMATION GetSocketInformation(SOCKET s);
 void FreeSocketInformation(SOCKET s);
-
+void GetTextFromFreq();
 /*---------------------------------------------------------------------------------
 --	FUNCTION:		Get Text From Input
 --
