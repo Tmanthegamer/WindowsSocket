@@ -1,4 +1,4 @@
-/*=====================================================================================
+ /*=====================================================================================
 SOURCE FILE:	Source.cpp
 
 PROGRAM:		Networking with Windows
@@ -81,7 +81,7 @@ BOOL incoming_file = FALSE;
 BOOL incoming_final_message = FALSE;
 BOOL first_ack = FALSE;
 
-TCHAR Name[] = TEXT("The Server");
+TCHAR Name[] = TEXT("The Client");
 
 LPSOCKET_INFORMATION SocketInfoList;
 sockaddr sockAddrClient;
@@ -94,30 +94,6 @@ SOCKET test;
 
 long delay(SYSTEMTIME t1, SYSTEMTIME t2);
 float avg_delay(long time, int num_packets);
-
-BOOL CALLBACK AboutDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
-{
-	switch (Message)
-	{
-	case WM_INITDIALOG:
-
-		return TRUE;
-	case WM_COMMAND:
-		switch (LOWORD(wParam))
-		{
-		case IDOK:
-			EndDialog(hwnd, IDOK);
-			break;
-		case IDCANCEL:
-			EndDialog(hwnd, IDCANCEL);
-			break;
-		}
-		break;
-	default:
-		return FALSE;
-	}
-	return TRUE;
-}
 
 HWND CreateListView(HWND parent)
 {
