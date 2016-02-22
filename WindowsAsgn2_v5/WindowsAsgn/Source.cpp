@@ -308,7 +308,7 @@ void SetServer(SOCKET* Accept) {
 	{
 		CreateSocketInformation(Listen);
 	}
-
+	remote = InternetAddr;
 	OutputDebugString("Connected via Setserver\n");
 }
 
@@ -379,6 +379,7 @@ void SetClientUDP()
 	CreateSocketInformation(sock);
 	test = sock;
 	remote = server;
+
 }
 
 void SetClient(SOCKET* Accept)
@@ -860,9 +861,77 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message,
 			if(WSASendTo(SocketInfo->Socket, &(SocketInfo->DataBuf), 1, &SendBytes, Flags, temp, sizeof(remote), NULL, NULL))
 			{
 				int err = WSAGetLastError();
-				if (err != WSAEWOULDBLOCK)
+
+				switch (err)
 				{
-					OutputDebugString("WSASendTo: WSAEWOULDBLOCK\n");
+				case WSAEACCES:
+					OutputDebugString("WSAEACCES");
+					break;
+				case WSAEADDRNOTAVAIL:
+					OutputDebugString("WSAEADDRNOTAVAIL");
+					break;
+				case WSAEAFNOSUPPORT:
+					OutputDebugString("WSAEAFNOSUPPORT");
+					break;
+				case WSAECONNRESET:
+					OutputDebugString("WSAECONNRESET");
+					break;
+				case WSAEDESTADDRREQ:
+					OutputDebugString("WSAEDESTADDRREQ");
+					break;
+				case WSAEFAULT:
+					OutputDebugString("WSAEFAULT");
+					break;
+				case WSAEHOSTUNREACH:
+					OutputDebugString("WSAEHOSTUNREACH");
+					break;
+				case WSAEINPROGRESS:
+					OutputDebugString("WSAEINPROGRESS");
+					break;
+				case WSAEINTR:
+					OutputDebugString("WSAEINTR");
+					break;
+				case WSAEINVAL:
+					OutputDebugString("WSAEINVAL");
+					break;
+				case WSAEMSGSIZE:
+					OutputDebugString("WSAEMSGSIZE");
+					break;
+				case WSAENETDOWN:
+					OutputDebugString("WSAENETDOWN");
+					break;
+				case WSAENOTSOCK:
+					OutputDebugString("WSAENOTSOCK");
+					break;
+				case WSAEOPNOTSUPP:
+					OutputDebugString("WSAEOPNOTSUPP");
+					break;
+				case WSAEALREADY:
+					OutputDebugString("jk");
+					break;
+				case WSAESHUTDOWN:
+					OutputDebugString("WSAESHUTDOWN");
+					break;
+				case WSAEWOULDBLOCK:
+					OutputDebugString("WSAEWOULDBLOCK");
+					PostMessage(hwnd, Message, wParam, FD_WRITE);
+					break;
+				case WSANOTINITIALISED:
+					OutputDebugString("WSANOTINITIALISED");
+					break;
+				case WSAEPROTOTYPE:
+					OutputDebugString("WSAEPROTOTYPE");
+					break;
+				case WSAENOPROTOOPT:
+					OutputDebugString("WSAENOPROTOOPT");
+					break;
+				case WSAEPROTONOSUPPORT:
+					OutputDebugString("WSAEPROTONOSUPPORT");
+					break;
+				case WSA_IO_PENDING:
+					OutputDebugString("WSA_IO_PENDING");
+					break;
+
 				}
 			}
 			GetSystemTime(&stEndTime);
